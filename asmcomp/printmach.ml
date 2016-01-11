@@ -21,7 +21,8 @@ let reg ppf r =
   if not (Reg.anonymous r) then
     fprintf ppf "%s" (Reg.name r)
   else
-    fprintf ppf "%s" (match r.typ with Addr -> "A" | Int -> "I" | Float -> "F");
+    fprintf ppf "%s"
+      (match r.typ with Val -> "V" | Addr -> "A" | Int -> "I" | Float -> "F");
   fprintf ppf "/%i" r.stamp;
   begin match r.loc with
   | Unknown -> ()
@@ -56,7 +57,10 @@ let regsetaddr ppf s =
     (fun r ->
       if !first then begin first := false; fprintf ppf "%a" reg r end
       else fprintf ppf "@ %a" reg r;
-      match r.typ with Addr -> fprintf ppf "*" | _ -> ())
+      match r.typ with
+      | Val -> fprintf ppf "*"
+      | Addr -> fprintf ppf "!"
+      | _ -> ())
     s
 
 let intcomp = function
@@ -105,7 +109,7 @@ let operation op arg ppf res =
   | Ireload -> fprintf ppf "%a (reload)" regs arg
   | Iconst_int n
   | Iconst_blockheader n -> fprintf ppf "%s" (Nativeint.to_string n)
-  | Iconst_float f -> fprintf ppf "%F" f
+  | Iconst_float f -> fprintf ppf "%F" (Int64.float_of_bits f)
   | Iconst_symbol s -> fprintf ppf "\"%s\"" s
   | Icall_ind -> fprintf ppf "call %a" regs arg
   | Icall_imm lbl -> fprintf ppf "call \"%s\" %a" lbl regs arg

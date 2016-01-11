@@ -82,7 +82,7 @@ struct caml_thread_struct {
   struct longjmp_buffer *external_raise; /* Saved external_raise */
 #endif
   int backtrace_pos;            /* Saved backtrace_pos */
-  code_t * backtrace_buffer;    /* Saved backtrace_buffer */
+  backtrace_slot * backtrace_buffer;    /* Saved backtrace_buffer */
   value backtrace_last_exn;     /* Saved backtrace_last_exn (root) */
 };
 
@@ -229,7 +229,7 @@ static void caml_io_mutex_lock(struct channel *chan)
   st_mutex mutex = chan->mutex;
 
   if (mutex == NULL) {
-    st_mutex_create(&mutex);
+    st_check_error(st_mutex_create(&mutex), "channel locking"); /*PR#7038*/
     chan->mutex = mutex;
   }
   /* PR#4351: first try to acquire mutex without releasing the master lock */

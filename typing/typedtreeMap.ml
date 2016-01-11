@@ -24,7 +24,8 @@ module type MapArgument = sig
   val enter_package_type : package_type -> package_type
   val enter_signature : signature -> signature
   val enter_signature_item : signature_item -> signature_item
-  val enter_module_type_declaration : module_type_declaration -> module_type_declaration
+  val enter_module_type_declaration :
+      module_type_declaration -> module_type_declaration
   val enter_module_type : module_type -> module_type
   val enter_module_expr : module_expr -> module_expr
   val enter_with_constraint : with_constraint -> with_constraint
@@ -52,7 +53,8 @@ module type MapArgument = sig
   val leave_package_type : package_type -> package_type
   val leave_signature : signature -> signature
   val leave_signature_item : signature_item -> signature_item
-  val leave_module_type_declaration : module_type_declaration -> module_type_declaration
+  val leave_module_type_declaration :
+      module_type_declaration -> module_type_declaration
   val leave_module_type : module_type -> module_type
   val leave_module_expr : module_expr -> module_expr
   val leave_with_constraint : with_constraint -> with_constraint
@@ -73,12 +75,6 @@ end
 
 
 module MakeMap(Map : MapArgument) = struct
-
-  let may_map f v =
-    match v with
-        None -> v
-      | Some x -> Some (f x)
-
 
   open Misc
 
@@ -261,7 +257,8 @@ module MakeMap(Map : MapArgument) = struct
 
   and map_pat_extra pat_extra =
     match pat_extra with
-      | Tpat_constraint ct, loc, attrs -> (Tpat_constraint (map_core_type  ct), loc, attrs)
+      | Tpat_constraint ct, loc, attrs ->
+          (Tpat_constraint (map_core_type  ct), loc, attrs)
       | (Tpat_type _ | Tpat_unpack), _, _ -> pat_extra
 
   and map_expression exp =
@@ -278,13 +275,13 @@ module MakeMap(Map : MapArgument) = struct
           Texp_function (label, map_cases cases, partial)
         | Texp_apply (exp, list) ->
           Texp_apply (map_expression exp,
-                      List.map (fun (label, expo, optional) ->
+                      List.map (fun (label, expo) ->
                         let expo =
                           match expo with
                               None -> expo
                             | Some exp -> Some (map_expression exp)
                         in
-                        (label, expo, optional)
+                        (label, expo)
                       ) list )
         | Texp_match (exp, list1, list2, list3, partial) ->
           Texp_match (
@@ -382,6 +379,10 @@ module MakeMap(Map : MapArgument) = struct
           Texp_object (map_class_structure cl, string_list)
         | Texp_pack (mexpr) ->
           Texp_pack (map_module_expr mexpr)
+        | Texp_unreachable ->
+          Texp_unreachable
+        | Texp_extension_constructor _ as e ->
+          e
     in
     let exp_extra = List.map map_exp_extra exp.exp_extra in
     Map.leave_expression {
@@ -422,29 +423,30 @@ module MakeMap(Map : MapArgument) = struct
       match item.sig_desc with
           Tsig_value vd ->
             Tsig_value (map_value_description vd)
-        | Tsig_type (rf, list) -> Tsig_type (rf, List.map map_type_declaration list)
+        | Tsig_type (rf, list) ->
+            Tsig_type (rf, List.map map_type_declaration list)
         | Tsig_typext tyext ->
-          Tsig_typext (map_type_extension tyext)
+            Tsig_typext (map_type_extension tyext)
         | Tsig_exception ext ->
           Tsig_exception (map_extension_constructor ext)
         | Tsig_effect ext ->
           Tsig_effect (map_extension_constructor ext)
         | Tsig_module md ->
-          Tsig_module {md with md_type = map_module_type md.md_type}
+            Tsig_module {md with md_type = map_module_type md.md_type}
         | Tsig_recmodule list ->
-          Tsig_recmodule
-              (List.map
-                 (fun md -> {md with md_type = map_module_type md.md_type})
-                 list
-              )
+            Tsig_recmodule
+                (List.map
+                   (fun md -> {md with md_type = map_module_type md.md_type})
+                   list
+                )
         | Tsig_modtype mtd ->
-          Tsig_modtype (map_module_type_declaration mtd)
+            Tsig_modtype (map_module_type_declaration mtd)
         | Tsig_open _ -> item.sig_desc
         | Tsig_include incl ->
-          Tsig_include {incl with incl_mod = map_module_type incl.incl_mod}
+            Tsig_include {incl with incl_mod = map_module_type incl.incl_mod}
         | Tsig_class list -> Tsig_class (List.map map_class_description list)
         | Tsig_class_type list ->
-          Tsig_class_type (List.map map_class_type_declaration list)
+            Tsig_class_type (List.map map_class_type_declaration list)
         | Tsig_attribute _ as x -> x
     in
     Map.leave_signature_item { item with sig_desc = sig_desc }
@@ -546,9 +548,8 @@ module MakeMap(Map : MapArgument) = struct
 
         | Tcl_apply (cl, args) ->
           Tcl_apply (map_class_expr cl,
-                     List.map (fun (label, expo, optional) ->
-                       (label, may_map map_expression expo,
-                        optional)
+                     List.map (fun (label, expo) ->
+                       (label, may_map map_expression expo)
                      ) args)
         | Tcl_let (rec_flat, bindings, ivars, cl) ->
           Tcl_let (rec_flat, map_bindings rec_flat bindings,

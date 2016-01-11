@@ -51,9 +51,6 @@ let boxed_integer_name = function
   | Pint32 -> "int32"
   | Pint64 -> "int64"
 
-let print_boxed_integer name ppf bi =
-  fprintf ppf "%s_%s" (boxed_integer_name bi) name
-
 let print_boxed_integer_conversion ppf bi1 bi2 =
   fprintf ppf "%s_of_%s" (boxed_integer_name bi2) (boxed_integer_name bi1)
 
@@ -253,20 +250,133 @@ let primitive ppf = function
   | Pbbswap(bi) -> print_boxed_integer "bswap" ppf bi
   | Pint_as_pointer -> fprintf ppf "int_as_pointer"
 
+let name_of_primitive = function
+  | Pidentity -> "Pidentity"
+  | Pignore -> "Pignore"
+  | Prevapply _ -> "Prevapply"
+  | Pdirapply _ -> "Pdirapply"
+  | Ploc _ -> "Ploc"
+  | Pgetglobal _ -> "Pgetglobal"
+  | Psetglobal _ -> "Psetglobal"
+  | Pmakeblock _ -> "Pmakeblock"
+  | Pfield _ -> "Pfield"
+  | Psetfield _ -> "Psetfield"
+  | Pfloatfield _ -> "Pfloatfield"
+  | Psetfloatfield _ -> "Psetfloatfield"
+  | Pduprecord _ -> "Pduprecord"
+  | Plazyforce -> "Plazyforce"
+  | Pccall _ -> "Pccall"
+  | Praise _ -> "Praise"
+  | Psequand -> "Psequand"
+  | Psequor -> "Psequor"
+  | Pnot -> "Pnot"
+  | Pnegint -> "Pnegint"
+  | Paddint -> "Paddint"
+  | Psubint -> "Psubint"
+  | Pmulint -> "Pmulint"
+  | Pdivint -> "Pdivint"
+  | Pmodint -> "Pmodint"
+  | Pandint -> "Pandint"
+  | Porint -> "Porint"
+  | Pxorint -> "Pxorint"
+  | Plslint -> "Plslint"
+  | Plsrint -> "Plsrint"
+  | Pasrint -> "Pasrint"
+  | Pintcomp _ -> "Pintcomp"
+  | Poffsetint _ -> "Poffsetint"
+  | Poffsetref _ -> "Poffsetref"
+  | Pintoffloat -> "Pintoffloat"
+  | Pfloatofint -> "Pfloatofint"
+  | Pnegfloat -> "Pnegfloat"
+  | Pabsfloat -> "Pabsfloat"
+  | Paddfloat -> "Paddfloat"
+  | Psubfloat -> "Psubfloat"
+  | Pmulfloat -> "Pmulfloat"
+  | Pdivfloat -> "Pdivfloat"
+  | Pfloatcomp _ -> "Pfloatcomp"
+  | Pstringlength -> "Pstringlength"
+  | Pstringrefu -> "Pstringrefu"
+  | Pstringsetu -> "Pstringsetu"
+  | Pstringrefs -> "Pstringrefs"
+  | Pstringsets -> "Pstringsets"
+  | Parraylength _ -> "Parraylength"
+  | Pmakearray _ -> "Pmakearray"
+  | Parrayrefu _ -> "Parrayrefu"
+  | Parraysetu _ -> "Parraysetu"
+  | Parrayrefs _ -> "Parrayrefs"
+  | Parraysets _ -> "Parraysets"
+  | Pctconst _ -> "Pctconst"
+  | Pisint -> "Pisint"
+  | Pisout -> "Pisout"
+  | Pbittest -> "Pbittest"
+  | Pbintofint _ -> "Pbintofint"
+  | Pintofbint _ -> "Pintofbint"
+  | Pcvtbint _ -> "Pcvtbint"
+  | Pnegbint _ -> "Pnegbint"
+  | Paddbint _ -> "Paddbint"
+  | Psubbint _ -> "Psubbint"
+  | Pmulbint _ -> "Pmulbint"
+  | Pdivbint _ -> "Pdivbint"
+  | Pmodbint _ -> "Pmodbint"
+  | Pandbint _ -> "Pandbint"
+  | Porbint _ -> "Porbint"
+  | Pxorbint _ -> "Pxorbint"
+  | Plslbint _ -> "Plslbint"
+  | Plsrbint _ -> "Plsrbint"
+  | Pasrbint _ -> "Pasrbint"
+  | Pbintcomp _ -> "Pbintcomp"
+  | Pbigarrayref _ -> "Pbigarrayref"
+  | Pbigarrayset _ -> "Pbigarrayset"
+  | Pbigarraydim _ -> "Pbigarraydim"
+  | Pstring_load_16 _ -> "Pstring_load_16"
+  | Pstring_load_32 _ -> "Pstring_load_32"
+  | Pstring_load_64 _ -> "Pstring_load_64"
+  | Pstring_set_16 _ -> "Pstring_set_16"
+  | Pstring_set_32 _ -> "Pstring_set_32"
+  | Pstring_set_64 _ -> "Pstring_set_64"
+  | Pbigstring_load_16 _ -> "Pbigstring_load_16"
+  | Pbigstring_load_32 _ -> "Pbigstring_load_32"
+  | Pbigstring_load_64 _ -> "Pbigstring_load_64"
+  | Pbigstring_set_16 _ -> "Pbigstring_set_16"
+  | Pbigstring_set_32 _ -> "Pbigstring_set_32"
+  | Pbigstring_set_64 _ -> "Pbigstring_set_64"
+  | Pbswap16 -> "Pbswap16"
+  | Pbbswap _ -> "Pbbswap"
+  | Pint_as_pointer -> "Pint_as_pointer"
+  | Presume -> "Presume"
+  | Pdelegate -> "Pdelegate"
+  | Ptakecont -> "Ptakecont"
+  | Pperform -> "Pperform"
+
+let function_attribute ppf { inline; is_a_functor } =
+  if is_a_functor then
+    fprintf ppf "is_a_functor@ ";
+  match inline with
+  | Default_inline -> ()
+  | Always_inline -> fprintf ppf "always_inline@ "
+  | Never_inline -> fprintf ppf "never_inline@ "
+
+let apply_tailcall_attribute ppf tailcall =
+  if tailcall then
+    fprintf ppf " @@tailcall"
+
+let apply_inlined_attribute ppf = function
+  | Default_inline -> ()
+  | Always_inline -> fprintf ppf " always_inline"
+  | Never_inline -> fprintf ppf " never_inline"
+
 let rec lam ppf = function
   | Lvar id ->
       Ident.print ppf id
   | Lconst cst ->
       struct_const ppf cst
-  | Lapply(lfun, largs, info) when info.apply_should_be_tailcall ->
+  | Lapply ap ->
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
-      fprintf ppf "@[<2>(apply@ %a%a @@tailcall)@]" lam lfun lams largs
-  | Lapply(lfun, largs, _) ->
-      let lams ppf largs =
-        List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
-      fprintf ppf "@[<2>(apply@ %a%a)@]" lam lfun lams largs
-  | Lfunction{kind; params; body} ->
+      fprintf ppf "@[<2>(apply@ %a%a%a%a)@]" lam ap.ap_func lams ap.ap_args
+        apply_tailcall_attribute ap.ap_should_be_tailcall
+        apply_inlined_attribute ap.ap_inlined
+  | Lfunction{kind; params; body; attr} ->
       let pr_params ppf params =
         match kind with
         | Curried ->
@@ -280,7 +390,8 @@ let rec lam ppf = function
                 Ident.print ppf param)
               params;
             fprintf ppf ")" in
-      fprintf ppf "@[<2>(function%a@ %a)@]" pr_params params lam body
+      fprintf ppf "@[<2>(function%a@ %a%a)@]" pr_params params
+        function_attribute attr lam body
   | Llet(str, id, arg, body) ->
       let kind = function
         Alias -> "a" | Strict -> "" | StrictOpt -> "o" | Variable -> "v" in

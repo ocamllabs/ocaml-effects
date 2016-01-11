@@ -245,10 +245,12 @@ let record_frame_label live dbg =
   let live_offset = ref [] in
   Reg.Set.iter
     (function
-      | {typ = Addr; loc = Reg r} ->
+      | {typ = Val; loc = Reg r} ->
           live_offset := ((r lsl 1) + 1) :: !live_offset
-      | {typ = Addr; loc = Stack s} as reg ->
+      | {typ = Val; loc = Stack s} as reg ->
           live_offset := slot_offset s (register_class reg) :: !live_offset
+      | {typ = Addr} as r ->
+          Misc.fatal_error ("bad GC root " ^ Reg.name r)
       | _ -> ()
     )
     live;
@@ -419,12 +421,11 @@ let output_epilogue f =
 let float_constants = ref ([] : (int64 * int) list)
 
 let add_float_constant cst =
-  let repr = Int64.bits_of_float cst in
   try
-    List.assoc repr !float_constants
+    List.assoc cst !float_constants
   with Not_found ->
     let lbl = new_label() in
-    float_constants := (repr, lbl) :: !float_constants;
+    float_constants := (cst, lbl) :: !float_constants;
     lbl
 
 let emit_float_constant f lbl =
@@ -468,7 +469,7 @@ let emit_instr fallthrough i =
       else
         I.mov (nat n) (res i 0)
   | Lop(Iconst_float f) ->
-      begin match Int64.bits_of_float f with
+      begin match f with
       | 0x0000_0000_0000_0000L ->       (* +0.0 *)
           I.xorpd (res i 0) (res i 0)
       | _ ->
@@ -539,7 +540,7 @@ let emit_instr fallthrough i =
   | Lop(Iload(chunk, addr)) ->
       let dest = res i 0 in
       begin match chunk with
-      | Word ->
+      | Word_int | Word_val ->
           I.mov (addressing addr QWORD i 0) dest
       | Byte_unsigned ->
           I.movzx (addressing addr BYTE i 0) dest
@@ -560,7 +561,7 @@ let emit_instr fallthrough i =
       end
   | Lop(Istore(chunk, addr, _)) ->
       begin match chunk with
-      | Word ->
+      | Word_int | Word_val ->
           I.mov (arg i 0) (addressing addr QWORD i 1)
       | Byte_unsigned | Byte_signed ->
           I.mov (arg8 i 0) (addressing addr BYTE i 1)
@@ -741,7 +742,8 @@ let emit_instr fallthrough i =
         else (phys_reg 0 (*rax*), phys_reg 4 (*rdx*)) in
 
       I.lea (mem64_rip NONE lbl) (reg tmp1);
-      I.movsxd (mem64 DWORD 0 (arg64 i 0) ~scale:4 ~base:(reg64 tmp1)) (reg tmp2);
+      I.movsxd (mem64 DWORD 0 (arg64 i 0) ~scale:4 ~base:(reg64 tmp1))
+               (reg tmp2);
       I.add (reg tmp2) (reg tmp1);
       I.jmp (reg tmp1);
 
@@ -868,7 +870,7 @@ let fundecl fundecl =
   (* XXX KC: fundecl.fun_body.live does not capture liveness at the start of
   the function properly. *)
   let live_initially =
-    Reg.Set.(fold (fun r s -> add {r with typ = Addr} s)
+    Reg.Set.(fold (fun r s -> add {r with typ = Val} s)
       fundecl.fun_args empty)
   in
   tailrec_entry_point := record_frame_label live_initially Debuginfo.none;
@@ -1051,4 +1053,3 @@ let end_assembly() =
       None
   in
   X86_proc.generate_code asm
-

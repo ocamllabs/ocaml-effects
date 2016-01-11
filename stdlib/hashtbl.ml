@@ -14,9 +14,9 @@
 (* Hash tables *)
 
 external seeded_hash_param :
-  int -> int -> int -> 'a -> int = "caml_hash" "noalloc"
+  int -> int -> int -> 'a -> int = "caml_hash" [@@noalloc]
 external old_hash_param :
-  int -> int -> 'a -> int = "caml_hash_univ_param" "noalloc"
+  int -> int -> 'a -> int = "caml_hash_univ_param" [@@noalloc]
 
 let hash x = seeded_hash_param 10 100 0 x
 let hash_param n1 n2 x = seeded_hash_param n1 n2 0 x
@@ -158,7 +158,7 @@ let find_all h key =
 let replace h key info =
   let rec replace_bucket = function
     | Empty ->
-        raise Not_found
+        raise_notrace Not_found
     | Cons(k, i, next) ->
         if compare k key = 0
         then Cons(key, info, next)
@@ -350,7 +350,7 @@ module MakeSeeded(H: SeededHashedType): (SeededS with type key = H.t) =
     let replace h key info =
       let rec replace_bucket = function
         | Empty ->
-            raise Not_found
+            raise_notrace Not_found
         | Cons(k, i, next) ->
             if H.equal k key
             then Cons(key, info, next)

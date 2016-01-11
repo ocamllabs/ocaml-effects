@@ -101,7 +101,7 @@ value caml_alloc_stack (value hval, value hexn, value heff) {
   ctxt->callback_offset = sizeof(value); /* Return address is caml_fiber_val_handler */
   Stack_sp(stack) = 5 * sizeof(value) + sizeof(struct caml_context);
 
-  caml_gc_log ("Allocate stack=0x%lx of %lu words\n", 
+  caml_gc_log ("Allocate stack=0x%lx of %lu words\n",
                stack, caml_init_fiber_wsz);
 
   CAMLreturn (stack);
@@ -119,7 +119,7 @@ void caml_realloc_stack () {
   size = Stack_high(old_stack) - Stack_base(old_stack);
   size *= 2;
 
-  caml_gc_log ("Growing old_stack=0x%lx to %lu words\n", 
+  caml_gc_log ("Growing old_stack=0x%lx to %lu words\n",
                 old_stack, Stack_ctx_words + size/sizeof(value));
   new_stack = caml_alloc(Stack_ctx_words + (size / sizeof(value)), Stack_tag);
   caml_gc_log ("New_stack=0x%lx\n", new_stack);
@@ -180,7 +180,7 @@ void caml_init_main_stack (value* gc_regs)
   ctxt->gc_regs = NULL;
   ctxt->callback_offset = 0;
   Stack_sp(stack) = sizeof(struct caml_context);
-  caml_gc_log ("Allocate stack=0x%lx of %lu words\n", 
+  caml_gc_log ("Allocate stack=0x%lx of %lu words\n",
                stack, Stack_size/sizeof(value));
 
   caml_current_stack = stack;
@@ -284,7 +284,7 @@ void caml_switch_stack(value target) {
 
   caml_current_stack = target;
 
-  if (caml_gc_phase == Phase_mark && 
+  if (caml_gc_phase == Phase_mark &&
       Color_val(caml_current_stack) != Caml_black) {
     caml_scan_stack(caml_darken, caml_current_stack);
     Hd_val(caml_current_stack) = Blackhd_hd(Hd_val(caml_current_stack));

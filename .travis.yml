@@ -1,4 +1,23 @@
+#########################################################################
+#                                                                       #
+#                                 OCaml                                 #
+#                                                                       #
+#              Anil Madhavapeddy, OCaml Labs                            #
+#                                                                       #
+#   Copyright 2014 Institut National de Recherche en Informatique et    #
+#   en Automatique.  All rights reserved.  This file is distributed     #
+#   under the terms of the Q Public License version 1.0.                #
+#                                                                       #
+#########################################################################
+
+sudo: false
 language: c
 script: bash -ex .travis-ci.sh
-env:
-   - XARCH=i386
+matrix:
+  include:
+  - env: CI_KIND=build XARCH=i386
+  - env: CI_KIND=changes
+  - env: CI_KIND=tests
+  allow_failures:
+  - env: CI_KIND=changes
+  - env: CI_KIND=tests

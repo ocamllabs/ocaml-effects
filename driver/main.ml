@@ -105,7 +105,9 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _open s = open_modules := s :: !open_modules
   let _output_obj () = output_c_object := true; custom_runtime := true
   let _output_complete_obj () =
-    output_c_object := true; output_complete_object := true; custom_runtime := true
+    output_c_object := true;
+    output_complete_object := true;
+    custom_runtime := true
   let _pack = set make_package
   let _pp s = preprocessor := Some s
   let _ppx s = first_ppx := s :: !first_ppx
@@ -128,6 +130,11 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _w = (Warnings.parse_options false)
   let _warn_error = (Warnings.parse_options true)
   let _warn_help = Warnings.help_warnings
+  let _color option =
+    begin match Clflags.parse_color_setting option with
+          | None -> ()
+          | Some setting -> Clflags.color := setting
+    end
   let _where = print_standard_library
   let _verbose = set verbose
   let _nopervasives = set nopervasives
@@ -137,6 +144,7 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _drawlambda = set dump_rawlambda
   let _dlambda = set dump_lambda
   let _dinstr = set dump_instr
+  let _dtimings = set print_timings
   let anonymous = anonymous
 end)
 
@@ -190,13 +198,11 @@ let main () =
       Bytelink.link ppf (get_objfiles ()) target;
       Warnings.check_fatal ();
     end;
-    exit 0
   with x ->
     Location.report_exception ppf x;
     exit 2
 
-let _ = main ()
-
-
-
-
+let _ =
+  Timings.(time All) main ();
+  if !Clflags.print_timings then Timings.print Format.std_formatter;
+  exit 0

@@ -1277,11 +1277,11 @@ do_resume:
       Stack_parent(self) = performer;
 
       caml_extern_sp = sp;
-      value old_stack = caml_switch_stack(parent);
       sp = caml_extern_sp;
+#ifdef DEBUG
+      value old_stack = caml_switch_stack(parent);
       Assert(old_stack == self);
-      /* Suppress compiler wanrning. */
-      old_stack = self;
+#endif
 
       caml_trap_sp_off = Long_val(sp[0]);
       extra_args = Long_val(sp[1]);

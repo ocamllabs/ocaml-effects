@@ -29,6 +29,11 @@ type directive_fun =
    | Directive_ident of (Longident.t -> unit)
    | Directive_bool of (bool -> unit)
 
+type directive_info = {
+  section: string;
+  doc: string;
+}
+
 (* The table of toplevel value bindings and its accessors *)
 
 module StringMap = Map.Make(String)
@@ -157,7 +162,9 @@ let load_lambda ppf lam =
     fprintf ppf "%a%a@."
     Printinstr.instrlist init_code
     Printinstr.instrlist fun_code;
-  let (code, code_size, reloc, events) = Emitcode.to_memory init_code fun_code in
+  let (code, code_size, reloc, events) =
+    Emitcode.to_memory init_code fun_code
+  in
   Meta.add_debug_info code code_size [| events |];
   let can_free = (fun_code = []) in
   let initial_symtable = Symtable.current_state() in
@@ -217,10 +224,17 @@ let print_exception_outcome ppf exn =
           print_string b;
           backtrace := None
 
-(* The table of toplevel directives.
-   Filled by functions from module topdirs. *)
 
-let directive_table = (Hashtbl.create 13 : (string, directive_fun) Hashtbl.t)
+(* Inserting new toplevel directives *)
+
+let directive_table = (Hashtbl.create 23 : (string, directive_fun) Hashtbl.t)
+
+let directive_info_table =
+  (Hashtbl.create 23 : (string, directive_info) Hashtbl.t)
+
+let add_directive name dir_fun dir_info =
+  Hashtbl.add directive_table name dir_fun;
+  Hashtbl.add directive_info_table name dir_info
 
 (* Execute a toplevel phrase *)
 
@@ -245,10 +259,21 @@ let execute_phrase print_outcome ppf phr =
               if print_outcome then
                 Printtyp.wrap_printing_env oldenv (fun () ->
                   match str.str_items with
-                  | [ { str_desc = Tstr_eval (exp, _attrs) }] ->
+                  | [ { str_desc =
+                          (Tstr_eval (exp, _)
+                          |Tstr_value
+                              (Asttypes.Nonrecursive,
+                               [{vb_pat = {pat_desc=Tpat_any};
+                                 vb_expr = exp}
+                               ]
+                              )
+                          )
+                      }
+                    ] ->
                       let outv = outval_of_value newenv v exp.exp_type in
                       let ty = Printtyp.tree_of_type_scheme exp.exp_type in
                       Ophr_eval (outv, ty)
+
                   | [] -> Ophr_signature []
                   | _ -> Ophr_signature (pr_item newenv sg'))
               else Ophr_signature []
@@ -284,13 +309,30 @@ let execute_phrase print_outcome ppf phr =
       in
       begin match d with
       | None ->
-          fprintf ppf "Unknown directive `%s'.@." dir_name;
+          fprintf ppf "Unknown directive `%s'." dir_name;
+          let directives =
+            Hashtbl.fold (fun dir _ acc -> dir::acc) directive_table [] in
+          Misc.did_you_mean ppf
+            (fun () -> Misc.spellcheck directives dir_name);
+          fprintf ppf "@.";
           false
       | Some d ->
           match d, dir_arg with
           | Directive_none f, Pdir_none -> f (); true
           | Directive_string f, Pdir_string s -> f s; true
-          | Directive_int f, Pdir_int n -> f n; true
+          | Directive_int f, Pdir_int (n,None) ->
+	     begin match Int_literal_converter.int n with
+	     | n -> f n; true
+	     | exception _ ->
+	       fprintf ppf "Integer literal exceeds the range of \
+			    representable integers for directive `%s'.@."
+		       dir_name;
+	       false
+	     end
+	  | Directive_int f, Pdir_int (n, Some _) ->
+              fprintf ppf "Wrong integer literal for directive `%s'.@."
+                dir_name;
+              false
           | Directive_ident f, Pdir_ident lid -> f lid; true
           | Directive_bool f, Pdir_bool b -> f b; true
           | _ ->
@@ -299,6 +341,11 @@ let execute_phrase print_outcome ppf phr =
               false
       end
 
+let execute_phrase print_outcome ppf phr =
+  try execute_phrase print_outcome ppf phr
+  with exn ->
+    Warnings.reset_fatal ();
+    raise exn
 
 (* Temporary assignment to a reference *)
 
@@ -343,6 +390,7 @@ let use_file ppf wrap_mod name =
       end
     in
     let lb = Lexing.from_channel ic in
+    Warnings.reset_fatal ();
     Location.init lb filename;
     (* Skip initial #! line if any *)
     Lexer.skip_sharp_bang lb;
@@ -421,6 +469,9 @@ let refill_lexbuf buffer len =
    can call directives from Topdirs. *)
 
 let _ =
+  if !Sys.interactive then (* PR#6108 *)
+    invalid_arg "The ocamltoplevel.cma library from compiler-libs \
+                 cannot be loaded inside the OCaml toplevel";
   Clflags.debug := true;
   Sys.interactive := true;
   let crc_intfs = Symtable.init_toplevel() in
@@ -465,7 +516,11 @@ exception PPerror
 let loop ppf =
   Location.formatter_for_warnings := ppf;
   fprintf ppf "        OCaml version %s@.@." Config.version;
-  initialize_toplevel_env ();
+  begin
+    try initialize_toplevel_env ()
+    with Env.Error _ | Typetexp.Error _ as exn ->
+      Location.report_exception ppf exn; exit 2
+  end;
   let lb = Lexing.from_function refill_lexbuf in
   Location.init lb "//toplevel//";
   Location.input_name := "//toplevel//";
@@ -477,6 +532,7 @@ let loop ppf =
     try
       Lexing.flush_input lb;
       Location.reset();
+      Warnings.reset_fatal ();
       first_line := true;
       let phr = try !parse_toplevel_phrase lb with Exit -> raise PPerror in
       let phr = preprocess_phrase ppf phr  in
@@ -498,12 +554,16 @@ let run_script ppf name args =
   Obj.truncate (Obj.repr Sys.argv) len;
   Arg.current := 0;
   Compmisc.init_path ~dir:(Filename.dirname name) true;
-                     (* Note: would use [Filename.abspath] here, if we had it. *)
-  toplevel_env := Compmisc.initial_env();
+                   (* Note: would use [Filename.abspath] here, if we had it. *)
+  begin
+    try toplevel_env := Compmisc.initial_env()
+    with Env.Error _ | Typetexp.Error _ as exn ->
+      Location.report_exception ppf exn; exit 2
+  end;
   Sys.interactive := false;
   let explicit_name =
     (* Prevent use_silently from searching in the path. *)
-    if Filename.is_implicit name
+    if name <> "" && Filename.is_implicit name
     then Filename.concat Filename.current_dir_name name
     else name
   in

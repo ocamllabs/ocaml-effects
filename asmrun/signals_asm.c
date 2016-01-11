@@ -67,9 +67,11 @@ extern char caml_system__code_begin, caml_system__code_end;
 
 void caml_garbage_collection(void)
 {
-  caml_young_limit = caml_young_start;
-  if (caml_young_ptr < caml_young_start || caml_force_major_slice) {
-    caml_minor_collection();
+  CAMLassert (caml_young_ptr >= caml_young_alloc_start);
+  caml_young_limit = caml_young_trigger;
+  if (caml_requested_major_slice || caml_requested_minor_gc ||
+      caml_young_ptr - caml_young_trigger < Max_young_whsize){
+    caml_gc_dispatch ();
   }
   caml_process_pending_signals();
 }
@@ -144,7 +146,7 @@ int caml_set_signal_action(int signo, int action)
 
 /* Machine- and OS-dependent handling of bound check trap */
 
-#if defined(TARGET_power) || (defined(TARGET_sparc) && defined(SYS_solaris))
+#if defined(TARGET_power) || defined(TARGET_s390x) || (defined(TARGET_sparc) && defined(SYS_solaris))
 DECLARE_SIGNAL_HANDLER(trap_handler)
 {
 #if defined(SYS_solaris)
@@ -166,11 +168,9 @@ DECLARE_SIGNAL_HANDLER(trap_handler)
     sigprocmask(SIG_UNBLOCK, &mask, NULL);
   }
 #endif
+  caml_fatal_error ("DECLARE_SIGNAL_HANDLER: signal handlers not implemented for fibers");
   caml_exception_ptr_offset = CONTEXT_EXCEPTION_PTR_OFFSET;
-  caml_young_ptr = (char *) CONTEXT_YOUNG_PTR;
-  /* XXX KC */
-  /* caml_bottom_of_stack = (char *) CONTEXT_SP; */
-  caml_fatal_error ("DECLARE_SIGNAL_HANDLER");
+  caml_young_ptr = (value *) CONTEXT_YOUNG_PTR;
   caml_last_return_address = (uintnat) CONTEXT_PC;
   caml_array_bound_error();
 }
@@ -266,6 +266,14 @@ void caml_init_signals(void)
     act.sa_flags |= SA_NODEFER;
 #endif
     sigaction(SIGTRAP, &act, NULL);
+  }
+#endif
+
+#if defined(TARGET_s390x)
+  { struct sigaction act;
+    sigemptyset(&act.sa_mask);
+    SET_SIGACT(act, trap_handler);
+    sigaction(SIGFPE, &act, NULL);
   }
 #endif
 

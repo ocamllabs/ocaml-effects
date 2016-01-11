@@ -21,6 +21,7 @@ extern uintnat caml_init_minor_heap_wsz;
 extern uintnat caml_init_heap_chunk_sz;
 extern uintnat caml_init_heap_wsz;
 extern uintnat caml_init_max_stack_wsz;
+extern uintnat caml_init_major_window;
 extern uintnat caml_trace_level;
 extern uintnat caml_init_fiber_wsz;
 

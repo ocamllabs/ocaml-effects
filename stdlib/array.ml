@@ -25,7 +25,8 @@ external append_prim : 'a array -> 'a array -> 'a array = "caml_array_append"
 external concat : 'a array list -> 'a array = "caml_array_concat"
 external unsafe_blit :
   'a array -> int -> 'a array -> int -> int -> unit = "caml_array_blit"
-external make_float: int -> float array = "caml_make_float_vect"
+external create_float: int -> float array = "caml_make_float_vect"
+let make_float = create_float
 
 let init l f =
   if l = 0 then [||] else
@@ -58,7 +59,7 @@ let append a1 a2 =
   else append_prim a1 a2
 
 let sub a ofs len =
-  if len < 0 || ofs > length a - len
+  if ofs < 0 || len < 0 || ofs > length a - len
   then invalid_arg "Array.sub"
   else unsafe_sub a ofs len
 
@@ -132,6 +133,38 @@ let fold_right f a x =
     r := f (unsafe_get a i) !r
   done;
   !r
+
+let exists p a =
+  let n = length a in
+  let rec loop i =
+    if i = n then false
+    else if p (unsafe_get a i) then true
+    else loop (succ i) in
+  loop 0
+
+let for_all p a =
+  let n = length a in
+  let rec loop i =
+    if i = n then true
+    else if p (unsafe_get a i) then loop (succ i)
+    else false in
+  loop 0
+
+let mem x a =
+  let n = length a in
+  let rec loop i =
+    if i = n then false
+    else if compare (unsafe_get a i) x = 0 then true
+    else loop (succ i) in
+  loop 0
+
+let memq x a =
+  let n = length a in
+  let rec loop i =
+    if i = n then false
+    else if x == (unsafe_get a i) then true
+    else loop (succ i) in
+  loop 0
 
 exception Bottom of int;;
 let sort cmp a =

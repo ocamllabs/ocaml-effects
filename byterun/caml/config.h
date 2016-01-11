@@ -70,6 +70,12 @@ typedef ARCH_INT32_TYPE int32_t;
 typedef ARCH_UINT32_TYPE uint32_t;
 typedef ARCH_INT64_TYPE int64_t;
 typedef ARCH_UINT64_TYPE uint64_t;
+#if SIZEOF_SHORT == 2
+typedef short int16_t;
+typedef unsigned short uint16_t;
+#else
+#error "No 16-bit integer type available"
+#endif
 #endif
 
 #if SIZEOF_PTR == SIZEOF_LONG
@@ -106,6 +112,7 @@ typedef uint64_t uintnat;
 #define ARCH_FLOAT_ENDIANNESS 0x01234567
 #endif
 
+
 /* We use threaded code interpretation if the compiler provides labels
    as first-class values (GCC 2.x). */
 
@@ -138,10 +145,11 @@ typedef uint64_t uintnat;
 /* Maximum size of a block allocated in the young generation (words). */
 /* Must be > 4 */
 #define Max_young_wosize 256
+#define Max_young_whsize (Whsize_wosize (Max_young_wosize))
 
 
 /* Minimum size of the minor zone (words).
-   This must be at least [Max_young_wosize + 1]. */
+   This must be at least [2 * Max_young_whsize]. */
 #define Minor_heap_min 4096
 
 /* Maximum size of the minor zone (words).
@@ -180,5 +188,12 @@ typedef uint64_t uintnat;
  */
 #define Max_percent_free_def 500
 
+/* Default setting for the major GC slice smoothing window: 1
+   (i.e. no smoothing)
+*/
+#define Major_window_def 1
+
+/* Maximum size of the major GC slice smoothing window. */
+#define Max_major_window 50
 
 #endif /* CAML_CONFIG_H */

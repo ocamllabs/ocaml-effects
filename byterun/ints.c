@@ -23,22 +23,26 @@
 
 static char * parse_sign_and_base(char * p,
                                   /*out*/ int * base,
+                                  /*out*/ int * signedness,
                                   /*out*/ int * sign)
 {
   *sign = 1;
   if (*p == '-') {
     *sign = -1;
     p++;
-  }
-  *base = 10;
+  } else if (*p == '+')
+    p++;
+  *base = 10; *signedness = 1;
   if (*p == '0') {
     switch (p[1]) {
     case 'x': case 'X':
-      *base = 16; p += 2; break;
+      *base = 16; *signedness = 0; p += 2; break;
     case 'o': case 'O':
-      *base = 8; p += 2; break;
+      *base = 8; *signedness = 0; p += 2; break;
     case 'b': case 'B':
-      *base = 2; p += 2; break;
+      *base = 2; *signedness = 0; p += 2; break;
+    case 'u': case 'U':
+      *signedness = 0; p += 2; break;
     }
   }
   return p;
@@ -65,9 +69,9 @@ static intnat parse_intnat(value s, int nbits, const char *errmsg)
 {
   char * p;
   uintnat res, threshold;
-  int sign, base, d;
+  int sign, base, signedness, d;
 
-  p = parse_sign_and_base(String_val(s), &base, &sign);
+  p = parse_sign_and_base(String_val(s), &base, &signedness, &sign);
   threshold = ((uintnat) -1) / base;
   d = parse_digit(*p);
   if (d < 0 || d >= base) caml_failwith(errmsg);
@@ -85,7 +89,7 @@ static intnat parse_intnat(value s, int nbits, const char *errmsg)
   if (p != String_val(s) + caml_string_length(s)){
     caml_failwith(errmsg);
   }
-  if (base == 10) {
+  if (signedness) {
     /* Signed representation expected, allow -2^(nbits-1) to 2^(nbits-1) - 1 */
     if (sign >= 0) {
       if (res >= (uintnat)1 << (nbits - 1)) caml_failwith(errmsg);
@@ -289,18 +293,26 @@ CAMLprim value caml_int32_of_int(value v)
 CAMLprim value caml_int32_to_int(value v)
 { return Val_long(Int32_val(v)); }
 
+int32_t caml_int32_of_float_unboxed(double x)
+{ return x; }
+
 CAMLprim value caml_int32_of_float(value v)
 { return caml_copy_int32((int32_t)(Double_val(v))); }
+
+double caml_int32_to_float_unboxed(int32_t x)
+{ return x; }
 
 CAMLprim value caml_int32_to_float(value v)
 { return caml_copy_double((double)(Int32_val(v))); }
 
+intnat caml_int32_compare_unboxed(int32_t i1, int32_t i2)
+{
+  return (i1 > i2) - (i1 < i2);
+}
+
 CAMLprim value caml_int32_compare(value v1, value v2)
 {
-  int32_t i1 = Int32_val(v1);
-  int32_t i2 = Int32_val(v2);
-  int res = (i1 > i2) - (i1 < i2);
-  return Val_int(res);
+  return Val_int(caml_int32_compare_unboxed(Int32_val(v1),Int32_val(v2)));
 }
 
 CAMLprim value caml_int32_format(value fmt, value arg)
@@ -316,18 +328,28 @@ CAMLprim value caml_int32_of_string(value s)
   return caml_copy_int32(parse_intnat(s, 32, INT32_ERRMSG));
 }
 
-CAMLprim value caml_int32_bits_of_float(value vd)
+int32_t caml_int32_bits_of_float_unboxed(double d)
 {
   union { float d; int32_t i; } u;
-  u.d = Double_val(vd);
-  return caml_copy_int32(u.i);
+  u.d = d;
+  return u.i;
+}
+
+double caml_int32_float_of_bits_unboxed(int32_t i)
+{
+  union { float d; int32_t i; } u;
+  u.i = i;
+  return u.d;
+}
+
+CAMLprim value caml_int32_bits_of_float(value vd)
+{
+  return caml_copy_int32(caml_int32_bits_of_float_unboxed(Double_val(vd)));
 }
 
 CAMLprim value caml_int32_float_of_bits(value vi)
 {
-  union { float d; int32_t i; } u;
-  u.i = Int32_val(vi);
-  return caml_copy_double(u.d);
+  return caml_copy_double(caml_int32_float_of_bits_unboxed(Int32_val(vi)));
 }
 
 /* 64-bit integers */
@@ -434,7 +456,9 @@ CAMLprim value caml_int64_mod(value v1, value v2)
   if (divisor == 0) caml_raise_zero_divide();
   /* PR#4740: on some processors, division crashes on overflow.
      Implement the same behavior as for type "int". */
-  if (dividend == ((int64_t)1 << 63) && divisor == -1) return caml_copy_int64(0);
+  if (dividend == ((int64_t)1 << 63) && divisor == -1){
+    return caml_copy_int64(0);
+  }
   return caml_copy_int64(Int64_val(v1) % divisor);
 }
 
@@ -493,8 +517,14 @@ CAMLprim value caml_int64_of_int(value v)
 CAMLprim value caml_int64_to_int(value v)
 { return Val_long((intnat) (Int64_val(v))); }
 
+int64_t caml_int64_of_float_unboxed(double x)
+{ return x; }
+
 CAMLprim value caml_int64_of_float(value v)
 { return caml_copy_int64((int64_t) (Double_val(v))); }
+
+double caml_int64_to_float_unboxed(int64_t x)
+{ return x; }
 
 CAMLprim value caml_int64_to_float(value v)
 { return caml_copy_double((double) (Int64_val(v))); }
@@ -511,11 +541,14 @@ CAMLprim value caml_int64_of_nativeint(value v)
 CAMLprim value caml_int64_to_nativeint(value v)
 { return caml_copy_nativeint((intnat) (Int64_val(v))); }
 
+intnat caml_int64_compare_unboxed(int64_t i1, int64_t i2)
+{
+  return (i1 > i2) - (i1 < i2);
+}
+
 CAMLprim value caml_int64_compare(value v1, value v2)
 {
-  int64_t i1 = Int64_val(v1);
-  int64_t i2 = Int64_val(v2);
-  return Val_int((i1 > i2) - (i1 < i2));
+  return Val_int(caml_int64_compare_unboxed(Int64_val(v1),Int64_val(v2)));
 }
 
 CAMLprim value caml_int64_format(value fmt, value arg)
@@ -530,9 +563,9 @@ CAMLprim value caml_int64_of_string(value s)
 {
   char * p;
   uint64_t res, threshold;
-  int sign, base, d;
+  int sign, base, signedness, d;
 
-  p = parse_sign_and_base(String_val(s), &base, &sign);
+  p = parse_sign_and_base(String_val(s), &base, &signedness, &sign);
   threshold = ((uint64_t) -1) / base;
   d = parse_digit(*p);
   if (d < 0 || d >= base) caml_failwith(INT64_ERRMSG);
@@ -551,7 +584,7 @@ CAMLprim value caml_int64_of_string(value s)
   if (p != String_val(s) + caml_string_length(s)){
     caml_failwith(INT64_ERRMSG);
   }
-  if (base == 10) {
+  if (signedness) {
     /* Signed representation expected, allow -2^63 to 2^63 - 1 only */
     if (sign >= 0) {
       if (res >= (uint64_t)1 << 63) caml_failwith(INT64_ERRMSG);
@@ -563,24 +596,34 @@ CAMLprim value caml_int64_of_string(value s)
   return caml_copy_int64(res);
 }
 
-CAMLprim value caml_int64_bits_of_float(value vd)
+int64_t caml_int64_bits_of_float_unboxed(double d)
 {
   union { double d; int64_t i; int32_t h[2]; } u;
-  u.d = Double_val(vd);
+  u.d = d;
 #if defined(__arm__) && !defined(__ARM_EABI__)
   { int32_t t = u.h[0]; u.h[0] = u.h[1]; u.h[1] = t; }
 #endif
-  return caml_copy_int64(u.i);
+  return u.i;
+}
+
+double caml_int64_float_of_bits_unboxed(int64_t i)
+{
+  union { double d; int64_t i; int32_t h[2]; } u;
+  u.i = i;
+#if defined(__arm__) && !defined(__ARM_EABI__)
+  { int32_t t = u.h[0]; u.h[0] = u.h[1]; u.h[1] = t; }
+#endif
+  return u.d;
+}
+
+CAMLprim value caml_int64_bits_of_float(value vd)
+{
+  return caml_copy_int64(caml_int64_bits_of_float_unboxed(Double_val(vd)));
 }
 
 CAMLprim value caml_int64_float_of_bits(value vi)
 {
-  union { double d; int64_t i; int32_t h[2]; } u;
-  u.i = Int64_val(vi);
-#if defined(__arm__) && !defined(__ARM_EABI__)
-  { int32_t t = u.h[0]; u.h[0] = u.h[1]; u.h[1] = t; }
-#endif
-  return caml_copy_double(u.d);
+  return caml_copy_double(caml_int64_float_of_bits_unboxed(Int64_val(vi)));
 }
 
 /* Native integers */
@@ -740,8 +783,14 @@ CAMLprim value caml_nativeint_of_int(value v)
 CAMLprim value caml_nativeint_to_int(value v)
 { return Val_long(Nativeint_val(v)); }
 
+intnat caml_nativeint_of_float_unboxed(double x)
+{ return x; }
+
 CAMLprim value caml_nativeint_of_float(value v)
 { return caml_copy_nativeint((intnat)(Double_val(v))); }
+
+double caml_nativeint_to_float_unboxed(intnat x)
+{ return x; }
 
 CAMLprim value caml_nativeint_to_float(value v)
 { return caml_copy_double((double)(Nativeint_val(v))); }
@@ -752,12 +801,15 @@ CAMLprim value caml_nativeint_of_int32(value v)
 CAMLprim value caml_nativeint_to_int32(value v)
 { return caml_copy_int32(Nativeint_val(v)); }
 
+intnat caml_nativeint_compare_unboxed(intnat i1, intnat i2)
+{
+  return (i1 > i2) - (i1 < i2);
+}
+
 CAMLprim value caml_nativeint_compare(value v1, value v2)
 {
-  intnat i1 = Nativeint_val(v1);
-  intnat i2 = Nativeint_val(v2);
-  int res = (i1 > i2) - (i1 < i2);
-  return Val_int(res);
+  return Val_int(caml_nativeint_compare_unboxed(Nativeint_val(v1),
+                                                Nativeint_val(v2)));
 }
 
 CAMLprim value caml_nativeint_format(value fmt, value arg)

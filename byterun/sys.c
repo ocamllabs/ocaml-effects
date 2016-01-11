@@ -22,7 +22,9 @@
 #include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#if !_WIN32
+#if _WIN32
+#include <io.h> /* for isatty */
+#else
 #include <sys/wait.h>
 #endif
 #include "caml/config.h"
@@ -42,13 +44,15 @@
 #include "caml/alloc.h"
 #include "caml/debugger.h"
 #include "caml/fail.h"
+#include "caml/gc_ctrl.h"
 #include "caml/instruct.h"
+#include "caml/io.h"
+#include "caml/misc.h"
 #include "caml/mlvalues.h"
 #include "caml/osdeps.h"
 #include "caml/signals.h"
 #include "caml/fiber.h"
 #include "caml/sys.h"
-#include "caml/gc_ctrl.h"
 
 static char * error_message(void)
 {
@@ -92,6 +96,16 @@ CAMLexport void caml_sys_io_error(value arg)
   }
 }
 
+/* Check that [name] can safely be used as a file path */
+
+static void caml_sys_check_path(value name)
+{
+  if (! caml_string_is_c_safe(name)) {
+    errno = ENOENT;
+    caml_sys_error(name);
+  }
+}
+
 CAMLprim value caml_sys_exit(value retcode)
 {
   if ((caml_verb_gc & 0x400) != 0) {
@@ -100,11 +114,29 @@ CAMLprim value caml_sys_exit(value retcode)
       + (double) (caml_young_end - caml_young_ptr);
     double prowords = caml_stat_promoted_words;
     double majwords = caml_stat_major_words + (double) caml_allocated_words;
-    double allocated_words =
-      minwords + majwords - prowords;
-    caml_gc_message(0x400, "## Total allocated words: %ld\n", (long)allocated_words);
+    double allocated_words = minwords + majwords - prowords;
+    intnat mincoll = caml_stat_minor_collections;
+    intnat majcoll = caml_stat_major_collections;
+    intnat heap_words = caml_stat_heap_wsz;
+    intnat heap_chunks = caml_stat_heap_chunks;
+    intnat top_heap_words = caml_stat_top_heap_wsz;
+    intnat cpct = caml_stat_compactions;
+    caml_gc_message(0x400, "allocated_words: %ld\n", (long)allocated_words);
+    caml_gc_message(0x400, "minor_words: %ld\n", (long) minwords);
+    caml_gc_message(0x400, "promoted_words: %ld\n", (long) prowords);
+    caml_gc_message(0x400, "major_words: %ld\n", (long) majwords);
+    caml_gc_message(0x400, "minor_collections: %d\n", mincoll);
+    caml_gc_message(0x400, "major_collections: %d\n", majcoll);
+    caml_gc_message(0x400, "heap_words: %d\n", heap_words);
+    caml_gc_message(0x400, "heap_chunks: %d\n", heap_chunks);
+    caml_gc_message(0x400, "top_heap_words: %d\n", top_heap_words);
+    caml_gc_message(0x400, "compactions: %d\n", cpct);
   }
 
+#ifndef NATIVE_CODE
+  caml_debugger(PROGRAM_EXIT);
+#endif
+  CAML_INSTR_ATEXIT ();
   exit(Int_val(retcode));
   return Val_unit;
 }
@@ -134,6 +166,7 @@ CAMLprim value caml_sys_open(value path, value vflags, value vperm)
   int fd, flags, perm;
   char * p;
 
+  caml_sys_check_path(path);
   p = caml_strdup(String_val(path));
   flags = caml_convert_flag_list(vflags, sys_open_flags);
   perm = Int_val(vperm);
@@ -169,6 +202,7 @@ CAMLprim value caml_sys_file_exists(value name)
   char * p;
   int ret;
 
+  if (! caml_string_is_c_safe(name)) return Val_false;
   p = caml_strdup(String_val(name));
   caml_enter_blocking_section();
 #ifdef _WIN32
@@ -193,6 +227,7 @@ CAMLprim value caml_sys_is_directory(value name)
   char * p;
   int ret;
 
+  caml_sys_check_path(name);
   p = caml_strdup(String_val(name));
   caml_enter_blocking_section();
 #ifdef _WIN32
@@ -216,6 +251,7 @@ CAMLprim value caml_sys_remove(value name)
   CAMLparam1(name);
   char * p;
   int ret;
+  caml_sys_check_path(name);
   p = caml_strdup(String_val(name));
   caml_enter_blocking_section();
   ret = unlink(p);
@@ -230,6 +266,8 @@ CAMLprim value caml_sys_rename(value oldname, value newname)
   char * p_old;
   char * p_new;
   int ret;
+  caml_sys_check_path(oldname);
+  caml_sys_check_path(newname);
   p_old = caml_strdup(String_val(oldname));
   p_new = caml_strdup(String_val(newname));
   caml_enter_blocking_section();
@@ -247,6 +285,7 @@ CAMLprim value caml_sys_chdir(value dirname)
   CAMLparam1(dirname);
   char * p;
   int ret;
+  caml_sys_check_path(dirname);
   p = caml_strdup(String_val(dirname));
   caml_enter_blocking_section();
   ret = chdir(p);
@@ -271,6 +310,7 @@ CAMLprim value caml_sys_getenv(value var)
 {
   char * res;
 
+  if (! caml_string_is_c_safe(var)) caml_raise_not_found();
   res = getenv(String_val(var));
   if (res == 0) caml_raise_not_found();
   return caml_copy_string(res);
@@ -314,6 +354,10 @@ CAMLprim value caml_sys_system_command(value command)
   int status, retcode;
   char *buf;
 
+  if (! caml_string_is_c_safe (command)) {
+    errno = EINVAL;
+    caml_sys_error(command);
+  }
   buf = caml_strdup(String_val(command));
   caml_enter_blocking_section ();
   status = system(buf);
@@ -327,14 +371,14 @@ CAMLprim value caml_sys_system_command(value command)
   CAMLreturn (Val_int(retcode));
 }
 
-CAMLprim value caml_sys_time(value unit)
+double caml_sys_time_unboxed(value unit)
 {
 #ifdef HAS_GETRUSAGE
   struct rusage ru;
 
   getrusage (RUSAGE_SELF, &ru);
-  return caml_copy_double (ru.ru_utime.tv_sec + ru.ru_utime.tv_usec / 1e6
-                           + ru.ru_stime.tv_sec + ru.ru_stime.tv_usec / 1e6);
+  return ru.ru_utime.tv_sec + ru.ru_utime.tv_usec / 1e6
+    + ru.ru_stime.tv_sec + ru.ru_stime.tv_usec / 1e6;
 #else
   #ifdef HAS_TIMES
     #ifndef CLK_TCK
@@ -346,12 +390,17 @@ CAMLprim value caml_sys_time(value unit)
     #endif
     struct tms t;
     times(&t);
-    return caml_copy_double((double)(t.tms_utime + t.tms_stime) / CLK_TCK);
+    return (double)(t.tms_utime + t.tms_stime) / CLK_TCK;
   #else
     /* clock() is standard ANSI C */
-    return caml_copy_double((double)clock() / CLOCKS_PER_SEC);
+    return (double)clock() / CLOCKS_PER_SEC;
   #endif
 #endif
+}
+
+CAMLprim value caml_sys_time(value unit)
+{
+  return caml_copy_double(caml_sys_time_unboxed(unit));
 }
 
 #ifdef _WIN32
@@ -429,17 +478,17 @@ CAMLprim value caml_sys_const_max_wosize(value unit)
 
 CAMLprim value caml_sys_const_ostype_unix(value unit)
 {
-  return Val_long(0 == strcmp(OCAML_OS_TYPE,"Unix"));
+  return Val_bool(0 == strcmp(OCAML_OS_TYPE,"Unix"));
 }
 
 CAMLprim value caml_sys_const_ostype_win32(value unit)
 {
-  return Val_long(0 == strcmp(OCAML_OS_TYPE,"Win32"));
+  return Val_bool(0 == strcmp(OCAML_OS_TYPE,"Win32"));
 }
 
 CAMLprim value caml_sys_const_ostype_cygwin(value unit)
 {
-  return Val_long(0 == strcmp(OCAML_OS_TYPE,"Cygwin"));
+  return Val_bool(0 == strcmp(OCAML_OS_TYPE,"Cygwin"));
 }
 
 CAMLprim value caml_sys_get_config(value unit)
@@ -467,6 +516,7 @@ CAMLprim value caml_sys_read_directory(value path)
   char * p;
   int ret;
 
+  caml_sys_check_path(path);
   caml_ext_table_init(&tbl, 50);
   p = caml_strdup(String_val(path));
   caml_enter_blocking_section();
@@ -481,4 +531,22 @@ CAMLprim value caml_sys_read_directory(value path)
   result = caml_copy_string_array((char const **) tbl.contents);
   caml_ext_table_free(&tbl, 1);
   CAMLreturn(result);
+}
+
+/* Return true if the value is a filedescriptor (int) that is
+ * (presumably) open on an interactive terminal */
+CAMLprim value caml_sys_isatty(value chan)
+{
+  int fd;
+  value ret;
+
+  fd = (Channel(chan))->fd;
+#ifdef _WIN32
+  ret = Val_bool(_isatty(fd));
+        /* https://msdn.microsoft.com/en-us/library/f4s0ddew.aspx */
+#else
+  ret = Val_bool(isatty(fd));
+#endif
+
+  return ret;
 }

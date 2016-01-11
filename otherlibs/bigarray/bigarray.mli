@@ -83,7 +83,7 @@ type ('a, 'b) kind =
   | Nativeint : (nativeint, nativeint_elt) kind
   | Complex32 : (Complex.t, complex32_elt) kind
   | Complex64 : (Complex.t, complex64_elt) kind
-  | Char : (char, int8_unsigned_elt) kind
+  | Char : (char, int8_unsigned_elt) kind (**)
 (** To each element kind is associated an OCaml type, which is
    the type of OCaml values that can be stored in the big array
    or read back from it.  This type is not necessarily the same
@@ -170,10 +170,10 @@ val char : (char, int8_unsigned_elt) kind
 
 (** {6 Array layouts} *)
 
-type c_layout = C_layout_typ
+type c_layout = C_layout_typ (**)
 (** See {!Bigarray.fortran_layout}.*)
 
-type fortran_layout = Fortran_layout_typ
+type fortran_layout = Fortran_layout_typ (**)
 (** To facilitate interoperability with existing C and Fortran code,
    this library supports two different memory layouts for big arrays,
    one compatible with the C conventions,
@@ -460,16 +460,6 @@ module Genarray :
 
   end
 
-external ( .{,..,} ) : ('a, 'b, 'c) Genarray.t -> int array -> 'a = "caml_ba_get_generic"
-(** Index operator for generic arrays. When the [Bigarray] module is open,
- [ bigarray.{a,b,c,d,...} ] is desugared to [ (.{,..,} ) bigarray [|a,b,c,d,...|] ].
- *)
-
-external ( .{,..,} <- ) : ('a, 'b, 'c) Genarray.t -> int array -> 'a -> unit = "caml_ba_set_generic"
-(** Indexed assignment operator for generic arrays. When the [Bigarray] module is open,
- [ bigarray.{a,b,c,d,...} <- x ] is desugared to [ (.{,..,} ) bigarray [|a,b,c,d,...|] x ].
- *)
-
 (** {6 One-dimensional arrays} *)
 
 (** One-dimensional arrays. The [Array1] structure provides operations
@@ -551,15 +541,6 @@ module Array1 : sig
 
 end
 
-external ( .{} ) : ('a, 'b, 'c) Array1.t -> int -> 'a = "%caml_ba_opt_ref_1"
-(** Index operator for one-dimensional arrays. When the [Bigarray] module is open,
- [ bigarray.{a} ] is desugared to [ (.{} ) bigarray a ].
- *)
-
-external ( .{} <- ) : ('a, 'b, 'c) Array1.t -> int -> 'a -> unit = "%caml_ba_opt_set_1"
-(** Indexed assignment operator for one-dimensional arrays. When the [Bigarray] module is open,
- [ bigarray.{a} <- x ] is desugared to [ (.{} ) bigarray x ].
- *)
 
 (** {6 Two-dimensional arrays} *)
 
@@ -663,17 +644,6 @@ module Array2 :
       performed. *)
 
 end
-
-external ( .{,} ) : ('a, 'b, 'c) Array2.t -> int -> int -> 'a = "%caml_ba_opt_ref_2"
-(** Index operator for bidimensional arrays. When the [Bigarray] module is open,
- [ bigarray.{a,b} ] is desugared to [ (.{,} ) bigarray a b ].
- *)
-
-external ( .{,} <- ) : ('a, 'b, 'c) Array2.t -> int -> int -> 'a -> unit = "%caml_ba_opt_set_2"
-(** Indexed assignment operator for bidimensionnal arrays. When the [Bigarray] module is open,
- [ bigarray.{a,b} <- x ] is desugared to [ (.{,} ) bigarray a b x ].
- *)
-
 
 (** {6 Three-dimensional arrays} *)
 
@@ -802,16 +772,6 @@ module Array3 :
       performed. *)
 
 end
-
-external ( .{,,} ) : ('a, 'b, 'c) Array3.t -> int -> int -> int -> 'a = "%caml_ba_opt_ref_3"
-(** Index operator for tridimensional arrays. When the [Bigarray] module is open,
- [ bigarray.{a,b,c} ] is desugared to [ (.{,} ) bigarray a b c ].
- *)
-
-external ( .{,,} <- ) : ('a, 'b, 'c) Array3.t -> int -> int -> int -> 'a -> unit = "%caml_ba_opt_set_3"
-(** Indexed assignment operator for tridimensionnal arrays. When the [Bigarray] module is open,
- [ bigarray.{a,b,c} <- x ] is desugared to [ (.{,,} ) bigarray a b c x ].
- *)
 
 (** {6 Coercions between generic big arrays and fixed-dimension big arrays} *)
 

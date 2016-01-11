@@ -100,6 +100,7 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _w = option_with_arg "-w"
   let _warn_error = option_with_arg "-warn-error"
   let _warn_help = option "-warn-help"
+  let _color s = option_with_arg "-color" s
   let _where = option "-where"
   let _nopervasives = option "-nopervasives"
   let _dsource = option "-dsource"
@@ -108,6 +109,7 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _drawlambda = option "-drawlambda"
   let _dlambda = option "-dlambda"
   let _dinstr = option "-dinstr"
+  let _dtimings = option "-dtimings"
   let anonymous = process_file
 end);;
 

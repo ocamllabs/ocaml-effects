@@ -20,8 +20,10 @@
 typedef void (*scanning_action) (value, value *);
 
 void caml_oldify_local_roots (void);
-void caml_darken_all_roots (void);
-void caml_do_roots (scanning_action, int);
+void caml_darken_all_roots_start (void);
+intnat caml_darken_all_roots_slice (intnat);
+void caml_do_roots (scanning_action, int, int);
+extern uintnat caml_incremental_roots_count;
 CAMLextern void caml_do_local_roots (scanning_action,
                                      struct caml__roots_block *,
                                      int);

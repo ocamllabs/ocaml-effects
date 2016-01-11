@@ -123,10 +123,12 @@ let record_frame_label live dbg =
   let live_offset = ref [] in
   Reg.Set.iter
     (function
-        {typ = Addr; loc = Reg r} ->
+      | {typ = Val; loc = Reg r} ->
           live_offset := ((r lsl 1) + 1) :: !live_offset
-      | {typ = Addr; loc = Stack s} as reg ->
+      | {typ = Val; loc = Stack s} as reg ->
           live_offset := slot_offset s (register_class reg) :: !live_offset
+      | {typ = Addr} as r ->
+          Misc.fatal_error ("bad GC root " ^ Reg.name r)
       | _ -> ())
     live;
   frame_descriptors :=
@@ -563,13 +565,12 @@ let emit_instr i =
     | Lop(Iconst_int n | Iconst_blockheader n) ->
         emit_intconst i.res.(0) n
     | Lop(Iconst_float f) ->
-        let b = Int64.bits_of_float f in
-        if b = 0L then
+        if f = 0L then
           `	fmov	{emit_reg i.res.(0)}, xzr\n`
-        else if is_immediate_float b then
-          `	fmov	{emit_reg i.res.(0)}, #{emit_printf "0x%Lx" b}\n`
+        else if is_immediate_float f then
+          `	fmov	{emit_reg i.res.(0)}, #{emit_printf "0x%Lx" f}\n`
         else begin
-          let lbl = float_literal b in
+          let lbl = float_literal f in
           `	adrp	{emit_reg reg_tmp1}, {emit_label lbl}\n`;
           `	ldr	{emit_reg i.res.(0)}, [{emit_reg reg_tmp1}, #:lo12:{emit_label lbl}]\n`
         end
@@ -622,7 +623,7 @@ let emit_instr i =
         | Single ->
             `	ldr	s7, {emit_addressing addr base}\n`;
             `	fcvt	{emit_reg dst}, s7\n`
-        | Word | Double | Double_u ->
+        | Word_int | Word_val | Double | Double_u ->
             `	ldr	{emit_reg dst}, {emit_addressing addr base}\n`
         end
     | Lop(Istore(size, addr, _)) ->
@@ -643,7 +644,7 @@ let emit_instr i =
         | Single ->
             `	fcvt	s7, {emit_reg src}\n`;
             `	str	s7, {emit_addressing addr base}\n`;
-        | Word | Double | Double_u ->
+        | Word_int | Word_val | Double | Double_u ->
             `	str	{emit_reg src}, {emit_addressing addr base}\n`
         end
     | Lop(Ialloc n) ->
@@ -865,7 +866,7 @@ let rec emit_all i =
 let emit_profile() = ()   (* TODO *)
 (*
   match Config.system with
-    "linux_eabi" | "linux_eabihf" ->
+    "linux_eabi" | "linux_eabihf" | "netbsd" ->
       `	push	\{lr}\n`;
       `	{emit_call "__gnu_mcount_nc"}\n`
   | _ -> ()
@@ -942,6 +943,7 @@ let data l =
 
 let begin_assembly() =
   reset_debug_info();
+  `	.file	\"\"\n`;  (* PR#7037 *)
   let lbl_begin = Compilenv.make_symbol (Some "data_begin") in
   `	.data\n`;
   `	.globl	{emit_symbol lbl_begin}\n`;

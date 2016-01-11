@@ -38,12 +38,32 @@ typedef size_t asize_t;
 typedef char * addr;
 /* </private> */
 
+/* Noreturn is preserved for compatibility reasons.
+   Instead of the legacy GCC/Clang-only
+     foo Noreturn;
+   you should prefer
+     CAMLnoreturn_start foo CAMLnoreturn_end;
+   which supports both GCC/Clang and MSVC.
+
+   Note: CAMLnoreturn is a different macro defined in memory.h,
+   to be used in function bodies rather than  aprototype attribute.
+*/
 #ifdef __GNUC__
   /* Works only in GCC 2.5 and later */
+  #define CAMLnoreturn_start
+  #define CAMLnoreturn_end __attribute__ ((noreturn))
   #define Noreturn __attribute__ ((noreturn))
+#elif _MSC_VER >= 1500
+  #define CAMLnoreturn_start __declspec(noreturn)
+  #define CAMLnoreturn_end
+  #define Noreturn
 #else
+  #define CAMLnoreturn_start
+  #define CAMLnoreturn_end
   #define Noreturn
 #endif
+
+
 
 /* Export control (to mark primitives and to handle Windows DLL) */
 
@@ -63,8 +83,10 @@ typedef char * addr;
 extern "C" {
 #endif
 
-/* GC timing hooks. These can be assigned by the user. The hook functions
-   must not allocate or change the heap in any way. */
+/* GC timing hooks. These can be assigned by the user.
+   [caml_minor_gc_begin_hook] must not allocate nor change any heap value.
+   The others can allocate and even call back to OCaml code.
+*/
 typedef void (*caml_timing_hook) (void);
 extern caml_timing_hook caml_major_slice_begin_hook, caml_major_slice_end_hook;
 extern caml_timing_hook caml_minor_gc_begin_hook, caml_minor_gc_end_hook;
@@ -75,15 +97,25 @@ extern caml_timing_hook caml_finalise_begin_hook, caml_finalise_end_hook;
 #ifdef DEBUG
 #define CAMLassert(x) \
   ((x) ? (void) 0 : caml_failed_assert ( #x , __FILE__, __LINE__))
-CAMLextern int caml_failed_assert (char *, char *, int) Noreturn;
+CAMLnoreturn_start
+CAMLextern int caml_failed_assert (char *, char *, int)
+CAMLnoreturn_end;
 #else
 #define CAMLassert(x) ((void) 0)
 #endif
 
-CAMLextern void caml_fatal_error (char *msg) Noreturn;
-CAMLextern void caml_fatal_error_arg (char *fmt, char *arg) Noreturn;
+CAMLnoreturn_start
+CAMLextern void caml_fatal_error (char *msg)
+CAMLnoreturn_end;
+
+CAMLnoreturn_start
+CAMLextern void caml_fatal_error_arg (char *fmt, char *arg)
+CAMLnoreturn_end;
+
+CAMLnoreturn_start
 CAMLextern void caml_fatal_error_arg2 (char *fmt1, char *arg1,
-                                       char *fmt2, char *arg2) Noreturn;
+                                       char *fmt2, char *arg2)
+CAMLnoreturn_end;
 
 /* Safe string operations */
 
@@ -115,6 +147,10 @@ void caml_gc_log (char *, ...)
   __attribute__ ((format (printf, 1, 2)))
 #endif
 ;
+
+/* Runtime warnings */
+extern uintnat caml_runtime_warnings;
+int caml_runtime_warnings_active(void);
 
 /* Memory routines */
 
@@ -170,6 +206,104 @@ extern void caml_set_fields (intnat v, unsigned long, unsigned long);
 extern int caml_snprintf(char * buf, size_t size, const char * format, ...);
 #define snprintf caml_snprintf
 #endif
+
+#ifdef CAML_INSTR
+/* Timers and counters for GC latency profiling (Linux-only) */
+
+#include <time.h>
+#include <stdio.h>
+
+extern intnat caml_stat_minor_collections;
+extern intnat CAML_INSTR_STARTTIME, CAML_INSTR_STOPTIME;
+
+struct CAML_INSTR_BLOCK {
+  struct timespec ts[10];
+  char *tag[10];
+  int index;
+  struct CAML_INSTR_BLOCK *next;
+};
+
+extern struct CAML_INSTR_BLOCK *CAML_INSTR_LOG;
+
+/* Declare a timer/counter name. [t] must be a new variable name. */
+#define CAML_INSTR_DECLARE(t)                                       \
+  struct CAML_INSTR_BLOCK *t = NULL
+
+/* Allocate the data block for a given name.
+   [t] must have been declared with [CAML_INSTR_DECLARE]. */
+#define CAML_INSTR_ALLOC(t) do{                                     \
+    if (caml_stat_minor_collections >= CAML_INSTR_STARTTIME         \
+        && caml_stat_minor_collections < CAML_INSTR_STOPTIME){      \
+      t = malloc (sizeof (struct CAML_INSTR_BLOCK));                \
+      t->index = 0;                                                 \
+      t->tag[0] = "";                                               \
+      t->next = CAML_INSTR_LOG;                                     \
+      CAML_INSTR_LOG = t;                                           \
+    }                                                               \
+  }while(0)
+
+/* Allocate the data block and start the timer.
+   [t] must have been declared with [CAML_INSTR_DECLARE]
+   and allocated with [CAML_INSTR_ALLOC]. */
+#define CAML_INSTR_START(t, msg) do{                                \
+    if (t != NULL){                                                 \
+      t->tag[0] = msg;                                              \
+      clock_gettime (CLOCK_REALTIME, &(t->ts[0]));                  \
+    }                                                               \
+  }while(0)
+
+/* Declare a timer, allocate its data, and start it.
+   [t] must be a new variable name. */
+#define CAML_INSTR_SETUP(t, msg)                                    \
+  CAML_INSTR_DECLARE (t);                                           \
+  CAML_INSTR_ALLOC (t);                                             \
+  CAML_INSTR_START (t, msg)
+
+/* Record an intermediate time within a given timer.
+   [t] must have been declared, allocated, and started. */
+#define CAML_INSTR_TIME(t, msg) do{                                 \
+    if (t != NULL){                                                 \
+      ++ t->index;                                                  \
+      t->tag[t->index] = (msg);                                     \
+      clock_gettime (CLOCK_REALTIME, &(t->ts[t->index]));           \
+    }                                                               \
+  }while(0)
+
+/* Record an integer data point.
+   If [msg] ends with # it will be interpreted as an integer-valued event.
+   If it ends with @ it will be interpreted as an event counter.
+*/
+#define CAML_INSTR_INT(msg, data) do{                               \
+    CAML_INSTR_SETUP (__caml_tmp, "");                              \
+    if (__caml_tmp != NULL){                                        \
+      __caml_tmp->index = 1;                                        \
+      __caml_tmp->tag[1] = msg;                                     \
+      __caml_tmp->ts[1].tv_sec = 0;                                 \
+      __caml_tmp->ts[1].tv_nsec = (data);                           \
+    }                                                               \
+  }while(0)
+
+/* This function is called at the start of the program to set up
+   the data for the above macros.
+*/
+extern void CAML_INSTR_INIT (void);
+
+/* This function is automatically called by the runtime to output
+   the collected data to the dump file. */
+extern void CAML_INSTR_ATEXIT (void);
+
+#else /* CAML_INSTR */
+
+#define CAML_INSTR_DECLARE(t) /**/
+#define CAML_INSTR_ALLOC(t) /**/
+#define CAML_INSTR_START(t, name) /**/
+#define CAML_INSTR_SETUP(t, name) /**/
+#define CAML_INSTR_TIME(t, msg) /**/
+#define CAML_INSTR_INT(msg, c) /**/
+#define CAML_INSTR_INIT() /**/
+#define CAML_INSTR_ATEXIT() /**/
+
+#endif /* CAML_INSTR */
 
 /* </private> */
 

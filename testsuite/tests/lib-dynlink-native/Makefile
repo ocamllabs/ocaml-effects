@@ -10,12 +10,13 @@
 #                                                                       #
 #########################################################################
 
-BASEDIR=../..
+BASEDIR=$(shell pwd)/../..
 
 COMPFLAGS=-I $(OTOPDIR)/otherlibs/$(UNIXLIBVAR)unix \
 	  -I $(OTOPDIR)/otherlibs/systhreads \
           -I $(OTOPDIR)/otherlibs/dynlink
-LD_PATH=$(TOPDIR)/otherlibs/$(UNIXLIBVAR)unix:$(TOPDIR)/otherlibs/systhreads:$(TOPDIR)/otherlibs/dynlink
+LD_PATH = $(TOPDIR)/otherlibs/$(UNIXLIBVAR)unix:$(TOPDIR)/otherlibs/systhreads\
+:$(TOPDIR)/otherlibs/dynlink
 
 .PHONY: default
 default:
@@ -70,10 +71,13 @@ sub/api.so: sub/api.cmi sub/api.ml
 	@cd sub; $(OCAMLOPT) -c $(SHARED) api.ml
 
 sub/api.cmi: sub/api.mli
-	@cd sub; $(OCAMLOPT) -c api.mli
+	@cd sub; $(OCAMLOPT) -c -opaque api.mli
 
 sub/api.cmx: sub/api.cmi sub/api.ml
 	@cd sub; $(OCAMLOPT) -c api.ml
+
+plugin.cmi: plugin.mli
+	$(OCAMLOPT) -c -opaque plugin.mli
 
 plugin.cmx: api.cmx plugin.cmi
 sub/plugin.cmx: api.cmx
@@ -104,7 +108,7 @@ mylib.cmxa: plugin.cmx plugin2.cmx
 
 factorial.$(O): factorial.c
 	@$(OCAMLOPT) -c -ccopt "$(SHAREDCCCOMPOPTS)" -ccopt -I \
-	             -ccopt $(CTOPDIR)/byterun/caml \
+	             -ccopt $(CTOPDIR)/byterun \
 	             factorial.c
 
 .PHONY: promote

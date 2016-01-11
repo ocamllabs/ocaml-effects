@@ -6,7 +6,8 @@
 (*                                                                     *)
 (*  Copyright 2007 Institut National de Recherche en Informatique et   *)
 (*  en Automatique.  All rights reserved.  This file is distributed    *)
-(*  under the terms of the Q Public License version 1.0.               *)
+(*  under the terms of the GNU Library General Public License, with    *)
+(*  the special exception on linking described in file ../LICENSE.     *)
 (*                                                                     *)
 (***********************************************************************)
 
@@ -73,15 +74,20 @@ rule "target files"
         build each of those targets in turn."
   begin fun env build ->
     let itarget = env "%.itarget" in
-    let dir = Pathname.dirname itarget in
-    let targets = string_list_of_file itarget in
-    List.iter ignore_good (build (List.map (fun x -> [dir/x]) targets));
-    if !Options.make_links then
-      let link x =
-        Cmd (S [A"ln"; A"-sf"; P (!Options.build_dir/x); A Pathname.parent_dir_name]) in
-      Seq (List.map (fun x -> link (dir/x)) targets)
-    else
-      Nop
+    let targets =
+      let dir = Pathname.dirname itarget in
+      let files = string_list_of_file itarget in
+      List.map (fun file -> [Pathname.concat dir file]) files
+    in
+    let results = List.map Outcome.good (build targets) in
+    let link_command result =
+      Cmd (S [A "ln"; A "-sf";
+              P (Pathname.concat !Options.build_dir result);
+              A Pathname.pwd])
+    in
+    if not !Options.make_links
+    then Nop
+    else Seq (List.map link_command results)
   end;;
 
 rule "ocaml: mli -> cmi"
@@ -637,6 +643,7 @@ let () =
     (fun param -> S [A "-for-pack"; A param]);
   pflag ["ocaml"; "native"; "compile"] "inline"
     (fun param -> S [A "-inline"; A param]);
+  pflag ["ocaml"; "compile"] "color" (fun setting -> S[A "-color"; A setting]);
   List.iter (fun pp ->
     pflag ["ocaml"; "compile"] pp
       (fun param -> S [A ("-" ^ pp); A param]);
@@ -691,15 +698,25 @@ ocaml_lib ~extern:true ~tag_name:"use_toplevel" "toplevellib";;
 ocaml_lib ~extern:true ~dir:"+ocamldoc" "ocamldoc";;
 ocaml_lib ~extern:true ~dir:"+ocamlbuild" ~tag_name:"use_ocamlbuild" "ocamlbuildlib";;
 
-ocaml_lib ~extern:true ~dir:"+camlp4" ~tag_name:"use_camlp4" "camlp4lib";;
-ocaml_lib ~extern:true ~dir:"+camlp4" ~tag_name:"use_old_camlp4" "camlp4";;
-ocaml_lib ~extern:true ~dir:"+camlp4" ~tag_name:"use_camlp4_full" "camlp4fulllib";;
+let camlp4dir =
+  Findlib.(
+    try
+      if sys_command "sh -c 'ocamlfind list >/dev/null' 2>/dev/null" != 0
+      then raise (Findlib_error Cannot_run_ocamlfind);
+      (query "camlp4").location
+    with Findlib_error _ ->
+      "+camlp4"
+  );;
+
+ocaml_lib ~extern:true ~dir:camlp4dir ~tag_name:"use_camlp4" "camlp4lib";;
+ocaml_lib ~extern:true ~dir:camlp4dir ~tag_name:"use_old_camlp4" "camlp4";;
+ocaml_lib ~extern:true ~dir:camlp4dir ~tag_name:"use_camlp4_full" "camlp4fulllib";;
 flag ["ocaml"; "compile"; "use_camlp4_full"]
-     (S[A"-I"; A"+camlp4/Camlp4Parsers";
-        A"-I"; A"+camlp4/Camlp4Printers";
-        A"-I"; A"+camlp4/Camlp4Filters"]);;
-flag ["ocaml"; "use_camlp4_bin"; "link"; "byte"] (A"+camlp4/Camlp4Bin.cmo");;
-flag ["ocaml"; "use_camlp4_bin"; "link"; "native"] (A"+camlp4/Camlp4Bin.cmx");;
+     (S[A"-I"; A(camlp4dir^"/Camlp4Parsers");
+        A"-I"; A(camlp4dir^"/Camlp4Printers");
+        A"-I"; A(camlp4dir^"/Camlp4Filters")]);;
+flag ["ocaml"; "use_camlp4_bin"; "link"; "byte"] (A(camlp4dir^"/Camlp4Bin.cmo"));;
+flag ["ocaml"; "use_camlp4_bin"; "link"; "native"] (A(camlp4dir^"/Camlp4Bin.cmx"));;
 
 flag ["ocaml"; "debug"; "compile"; "byte"] (A "-g");;
 flag ["ocaml"; "debug"; "link"; "byte"; "program"] (A "-g");;
@@ -742,7 +759,8 @@ flag ["ocaml"; "compile"; "keep_docs";] (A "-keep-docs");
 flag ["ocaml"; "compile"; "keep_locs";] (A "-keep-locs");
 flag ["ocaml"; "absname"; "compile"] (A "-absname");;
 flag ["ocaml"; "absname"; "infer_interface"] (A "-absname");;
-flag ["ocaml"; "byte"; "compile"; "compat_32";] (A "-compat-32");
+flag ["ocaml"; "byte"; "compile"; "compat_32";] (A "-compat-32");;
+flag ["ocaml";"compile";"native";"asm"] & S [A "-S"];;
 
 
 (* threads, with or without findlib *)

@@ -48,7 +48,9 @@ extern caml_generated_constant
 
 /* Exception raising */
 
-extern void caml_raise_exception (value bucket) Noreturn;
+CAMLnoreturn_start
+  extern void caml_raise_exception (value bucket)
+CAMLnoreturn_end;
 
 uintnat caml_exception_ptr_offset = 0;
 

@@ -138,7 +138,8 @@ void caml_read_section_descriptors(int fd, struct exec_trailer *trail)
    Return the length of the section data in bytes, or -1 if no section
    found with that name. */
 
-int32_t caml_seek_optional_section(int fd, struct exec_trailer *trail, char *name)
+int32_t caml_seek_optional_section(int fd, struct exec_trailer *trail,
+                                   char *name)
 {
   long ofs;
   int i;
@@ -286,9 +287,13 @@ CAMLexport void caml_main(char **argv)
   caml_external_raise = NULL;
   /* Determine options and position of bytecode file */
 #ifdef DEBUG
-  caml_verb_gc = 0xBF;
+  caml_verb_gc = 0x3F;
 #endif
   caml_parse_ocamlrunparam();
+#ifdef DEBUG
+  caml_gc_message (-1, "### OCaml runtime: debug mode ###\n", 0);
+#endif
+
   pos = 0;
 
   /* First, try argv[0] (when ocamlrun is called by a bytecode program) */
@@ -325,9 +330,10 @@ CAMLexport void caml_main(char **argv)
   /* Initialize the abstract machine */
   caml_init_gc (caml_init_minor_heap_wsz, caml_init_heap_wsz,
                 caml_init_heap_chunk_sz, caml_init_percent_free,
-                caml_init_max_percent_free);
+                caml_init_max_percent_free, caml_init_major_window);
   caml_init_main_stack (caml_init_max_stack_wsz);
   caml_init_atom_table();
+  caml_init_backtrace();
   /* Initialize the interpreter */
   caml_interprete(NULL, 0);
   /* Initialize the debugger, if needed */
@@ -408,9 +414,10 @@ CAMLexport void caml_startup_code(
   /* Initialize the abstract machine */
   caml_init_gc (caml_init_minor_heap_wsz, caml_init_heap_wsz,
                 caml_init_heap_chunk_sz, caml_init_percent_free,
-                caml_init_max_percent_free);
+                caml_init_max_percent_free, caml_init_major_window);
   caml_init_main_stack (caml_init_max_stack_wsz);
   caml_init_atom_table();
+  caml_init_backtrace();
   /* Initialize the interpreter */
   caml_interprete(NULL, 0);
   /* Initialize the debugger, if needed */

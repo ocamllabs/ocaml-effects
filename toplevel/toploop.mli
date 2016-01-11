@@ -40,8 +40,22 @@ type directive_fun =
    | Directive_ident of (Longident.t -> unit)
    | Directive_bool of (bool -> unit)
 
+type directive_info = {
+  section: string;
+  doc: string;
+}
+
+val add_directive : string -> directive_fun -> directive_info -> unit
+        (* Add toplevel directive and its documentation.
+
+           @since 4.03 *)
+
 val directive_table : (string, directive_fun) Hashtbl.t
-        (* Table of known directives, with their execution function *)
+  (* Deprecated: please use [add_directive] instead of inserting
+     in this table directly. *)
+
+val directive_info_table : (string, directive_info) Hashtbl.t
+
 val toplevel_env : Env.t ref
         (* Typing environment for the toplevel *)
 val initialize_toplevel_env : unit -> unit
@@ -53,7 +67,8 @@ val execute_phrase : bool -> formatter -> Parsetree.toplevel_phrase -> bool
            phrase executed with no errors and [false] otherwise.
            First bool says whether the values and types of the results
            should be printed. Uncaught exceptions are always printed. *)
-val preprocess_phrase : formatter -> Parsetree.toplevel_phrase ->  Parsetree.toplevel_phrase
+val preprocess_phrase :
+    formatter -> Parsetree.toplevel_phrase ->  Parsetree.toplevel_phrase
         (* Preprocess the given toplevel phrase using regular and ppx
            preprocessors. Return the updated phrase. *)
 val use_file : formatter -> string -> bool

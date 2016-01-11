@@ -50,7 +50,9 @@ let add_ccobjs origin l =
     then begin
       if l.lib_custom then Clflags.custom_runtime := true;
       lib_ccobjs := l.lib_ccobjs @ !lib_ccobjs;
-      let replace_origin = Misc.replace_substring ~before:"$CAMLORIGIN" ~after:origin in
+      let replace_origin =
+        Misc.replace_substring ~before:"$CAMLORIGIN" ~after:origin
+      in
       lib_ccopts := List.map replace_origin l.lib_ccopts @ !lib_ccopts;
     end;
     lib_dllibs := l.lib_dllibs @ !lib_dllibs
@@ -80,11 +82,7 @@ let add_ccobjs origin l =
 
 (* First pass: determine which units are needed *)
 
-module IdentSet =
-  Set.Make(struct
-    type t = Ident.t
-    let compare = compare
-  end)
+module IdentSet = Lambda.IdentSet
 
 let missing_globals = ref IdentSet.empty
 

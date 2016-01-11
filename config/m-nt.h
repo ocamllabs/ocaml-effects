@@ -40,4 +40,8 @@
 #endif
 #define ARCH_INT64_PRINTF_FORMAT "I64"
 
+#if defined(_MSC_VER) && !defined(__cplusplus)
+#define inline __inline
+#endif
+
 #undef NONSTANDARD_DIV_MOD

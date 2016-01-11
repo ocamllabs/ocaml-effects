@@ -9,7 +9,7 @@
             pattern (pr6865.ml[1,0+8]..[1,0+9])
               Ppat_var "x" (pr6865.ml[1,0+8]..[1,0+9])
             expression (pr6865.ml[1,0+12]..[1,0+14])
-              Pexp_constant Const_int 42
+              Pexp_constant PConst_int (42,None)
         ]
     ]
   structure_item (pr6865.ml[2,15+0]..[2,15+25]) ghost
@@ -36,10 +36,15 @@
     Pstr_extension "foo"
     [
       structure_item (pr6865.ml[3,41+0]..[3,41+14])
-        Pstr_eval
-        expression (pr6865.ml[3,41+12]..[3,41+14])
-          Pexp_construct "()" (pr6865.ml[3,41+12]..[3,41+14])
-          None
+        Pstr_value Nonrec
+        [
+          <def>
+            pattern (pr6865.ml[3,41+8]..[3,41+9])
+              Ppat_any
+            expression (pr6865.ml[3,41+12]..[3,41+14])
+              Pexp_construct "()" (pr6865.ml[3,41+12]..[3,41+14])
+              None
+        ]
     ]
 ]
 

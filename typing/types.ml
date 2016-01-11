@@ -19,7 +19,7 @@ open Asttypes
 type type_expr =
   { mutable desc: type_desc;
     mutable level: int;
-    mutable id: int }
+    id: int }
 
 and type_desc =
     Tvar of string option
@@ -265,9 +265,9 @@ and modtype_declaration =
   }
 
 and rec_status =
-    Trec_not                            (* first in a nonrecursive group *)
-  | Trec_first                          (* first in a recursive group *)
-  | Trec_next                           (* not first in a recursive/nonrecursive group *)
+    Trec_not                   (* first in a nonrecursive group *)
+  | Trec_first                 (* first in a recursive group *)
+  | Trec_next                  (* not first in a recursive/nonrecursive group *)
 
 and ext_status =
     Text_first                     (* first constructor of an extension *)

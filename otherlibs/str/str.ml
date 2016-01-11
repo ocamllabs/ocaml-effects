@@ -273,7 +273,8 @@ let compile fold_case re =
   let rec emit_code = function
     Char c ->
       if fold_case then
-        emit_instr op_CHARNORM (Char.code (Char.lowercase c))[@ocaml.warnerror "-3"]
+        emit_instr op_CHARNORM (Char.code (Char.lowercase c))
+          [@ocaml.warnerror "-3"]
       else
         emit_instr op_CHAR (Char.code c)
   | String s ->
@@ -281,7 +282,8 @@ let compile fold_case re =
         0 -> ()
       | 1 ->
         if fold_case then
-          emit_instr op_CHARNORM (Char.code (Char.lowercase s.[0]))[@ocaml.warnerror "-3"]
+          emit_instr op_CHARNORM (Char.code (Char.lowercase s.[0]))
+            [@ocaml.warnerror "-3"]
         else
           emit_instr op_CHAR (Char.code s.[0])
       | _ ->
@@ -294,7 +296,8 @@ let compile fold_case re =
           emit_code (String (string_after s (i+1)))
         with Not_found ->
           if fold_case then
-            emit_instr op_STRINGNORM (cpool_index (String.lowercase s))[@ocaml.warnerror "-3"]
+            emit_instr op_STRINGNORM (cpool_index (String.lowercase s))
+              [@ocaml.warnerror "-3"]
           else
             emit_instr op_STRING (cpool_index s)
       end
@@ -376,13 +379,13 @@ let compile fold_case re =
       let lbl = !progpos in
       patch_instr pos_pushback op_PUSHBACK lbl
   | Group(n, r) ->
-      if n >= 32 then failwith "too many \\(...\\) groups";
       emit_instr op_BEGGROUP n;
       emit_code r;
       emit_instr op_ENDGROUP n;
       numgroups := max !numgroups (n+1)
   | Refgroup n ->
-      emit_instr op_REFGROUP n
+      emit_instr op_REFGROUP n;
+      numgroups := max !numgroups (n+1)
   | Bol ->
       emit_instr op_BOL 0
   | Eol ->
@@ -515,12 +518,10 @@ let parse s =
           assert false
       | '(' ->
           let group_no = !group_counter in
-          if group_no < 32 then incr group_counter;
+          incr group_counter;
           let (r, j) = regexp0 (i+1) in
           if j + 1 < len && s.[j] = '\\' && s.[j+1] = ')' then
-            if group_no < 32
-            then (Group(group_no, r), j + 2)
-            else (r, j + 2)
+            (Group(group_no, r), j + 2)
           else
             failwith "\\( group not closed by \\)"
       | '1' .. '9' as c ->

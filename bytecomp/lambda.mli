@@ -137,7 +137,7 @@ and comparison =
 and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
 
-and boxed_integer =
+and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
 
 and bigarray_kind =
@@ -166,17 +166,10 @@ type structured_constant =
   | Const_float_array of string list
   | Const_immstring of string
 
-type apply_info = {
-  apply_loc : Location.t;
-  apply_should_be_tailcall : bool; (* true if [@tailcall] was specified *)
-}
-
-val no_apply_info : apply_info
-(** Default [apply_info]: no location, no tailcall *)
-
-val mk_apply_info : ?tailcall:bool -> Location.t -> apply_info
-(** Build apply_info
-    @param tailcall if true, the application should be in tail position; default false *)
+type inline_attribute =
+  | Always_inline (* [@inline] or [@inline always] *)
+  | Never_inline (* [@inline never] *)
+  | Default_inline (* no [@inline] attribute *)
 
 type function_kind = Curried | Tupled
 
@@ -195,10 +188,15 @@ type meth_kind = Self | Public | Cached
 
 type shared_code = (int * int) list     (* stack size -> code label *)
 
+type function_attribute = {
+  inline : inline_attribute;
+  is_a_functor: bool;
+}
+
 type lambda =
     Lvar of Ident.t
   | Lconst of structured_constant
-  | Lapply of lambda * lambda list * apply_info
+  | Lapply of lambda_apply
   | Lfunction of lfunction
   | Llet of let_kind * Ident.t * lambda * lambda
   | Lletrec of (Ident.t * lambda) list * lambda
@@ -222,7 +220,15 @@ type lambda =
 and lfunction =
   { kind: function_kind;
     params: Ident.t list;
-    body: lambda }
+    body: lambda;
+    attr: function_attribute; } (* specified with [@inline] attribute *)
+
+and lambda_apply =
+  { ap_func : lambda;
+    ap_args : lambda list;
+    ap_loc : Location.t;
+    ap_should_be_tailcall : bool;       (* true if [@tailcall] was specified *)
+    ap_inlined : inline_attribute }     (* specified with the [@inline] attribute *)
 
 and lambda_switch =
   { sw_numconsts: int;                  (* Number of integer cases *)
@@ -263,6 +269,8 @@ val bind : let_kind -> Ident.t -> lambda -> lambda -> lambda
 
 val commute_comparison : comparison -> comparison
 val negate_comparison : comparison -> comparison
+
+val default_function_attribute : function_attribute
 
 (***********************)
 (* For static failures *)

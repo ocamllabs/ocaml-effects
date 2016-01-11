@@ -103,10 +103,12 @@ let record_frame_label live dbg =
   let live_offset = ref [] in
   Reg.Set.iter
     (function
-        {typ = Addr; loc = Reg r} ->
+      | {typ = Val; loc = Reg r} ->
           live_offset := ((r lsl 1) + 1) :: !live_offset
-      | {typ = Addr; loc = Stack s} as reg ->
+      | {typ = Val; loc = Stack s} as reg ->
           live_offset := slot_offset s (register_class reg) :: !live_offset
+      | {typ = Addr} as r ->
+          Misc.fatal_error ("bad GC root " ^ Reg.name r)
       | _ -> ())
     live;
   frame_descriptors :=
@@ -283,13 +285,12 @@ let num_literals = ref 0
 
 (* Label a floating-point literal *)
 let float_literal f =
-  let repr = Int64.bits_of_float f in
   try
-    List.assoc repr !float_literals
+    List.assoc f !float_literals
   with Not_found ->
     let lbl = new_label() in
     num_literals := !num_literals + 2;
-    float_literals := (repr, lbl) :: !float_literals;
+    float_literals := (f, lbl) :: !float_literals;
     lbl
 
 (* Label a GOTREL literal *)
@@ -391,9 +392,8 @@ let emit_instr i =
     | Lop(Iconst_int n | Iconst_blockheader n) ->
         emit_intconst i.res.(0) (Nativeint.to_int32 n)
     | Lop(Iconst_float f) when !fpu = Soft ->
-        let bits = Int64.bits_of_float f in
-        let high_bits = Int64.to_int32 (Int64.shift_right_logical bits 32)
-        and low_bits = Int64.to_int32 bits in
+        let high_bits = Int64.to_int32 (Int64.shift_right_logical f 32)
+        and low_bits = Int64.to_int32 f in
         if is_immediate low_bits || is_immediate high_bits then begin
           let ninstr_low = emit_intconst i.res.(0) low_bits
           and ninstr_high = emit_intconst i.res.(1) high_bits in
@@ -425,7 +425,7 @@ let emit_instr i =
               let ex = ((ex + 3) land 0x07) lxor 0x04 in
               Some((sg lsl 7) lor (ex lsl 4) lor mn)
           end in
-        begin match encode (Int64.bits_of_float f) with
+        begin match encode f with
           None ->
             let lbl = float_literal f in
             `	fldd	{emit_reg i.res.(0)}, {emit_label lbl}\n`
@@ -820,7 +820,7 @@ let rec emit_all ninstr i =
 
 let emit_profile() =
   match Config.system with
-    "linux_eabi" | "linux_eabihf" ->
+    "linux_eabi" | "linux_eabihf" | "netbsd" ->
       `	push	\{lr}\n`;
       `	{emit_call "__gnu_mcount_nc"}\n`
   | _ -> ()
@@ -892,6 +892,7 @@ let data l =
 
 let begin_assembly() =
   reset_debug_info();
+  `	.file	\"\"\n`;  (* PR#7037 *)
   `	.syntax	unified\n`;
   begin match !arch with
   | ARMv4   -> `	.arch	armv4t\n`
@@ -947,7 +948,7 @@ let end_assembly () =
   `	.type	{emit_symbol lbl}, %object\n`;
   `	.size	{emit_symbol lbl}, .-{emit_symbol lbl}\n`;
   begin match Config.system with
-    "linux_eabihf" | "linux_eabi" ->
+    "linux_eabihf" | "linux_eabi" | "netbsd" ->
       (* Mark stack as non-executable *)
       `	.section	.note.GNU-stack,\"\",%progbits\n`
   | _ -> ()

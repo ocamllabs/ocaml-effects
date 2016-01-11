@@ -54,8 +54,7 @@ let num_register_classes = 2
 
 let register_class r =
   match r.typ with
-    Int -> 0
-  | Addr -> 0
+  | Val | Int | Addr -> 0
   | Float -> 1
 
 let num_available_registers = [| 7; 0 |]
@@ -88,7 +87,6 @@ let phys_reg n =
 let eax = phys_reg 0
 let ecx = phys_reg 2
 let edx = phys_reg 3
-let tos = phys_reg 100
 
 let stack_slot slot ty =
   Reg.at_location ty (Stack slot)
@@ -118,7 +116,7 @@ let calling_conventions first_int last_int first_float last_float make_stack
   let ofs = ref (-64) in
   for i = 0 to Array.length arg - 1 do
     match arg.(i).typ with
-      Int | Addr as ty ->
+      Val | Int | Addr as ty ->
         if !int <= last_int then begin
           loc.(i) <- phys_reg !int;
           incr int
@@ -147,11 +145,13 @@ let loc_parameters arg =
   let (loc, ofs) = calling_conventions 0 5 100 99 incoming arg in loc
 let loc_results res =
   let (loc, ofs) = calling_conventions 0 5 100 100 not_supported res in loc
-let extcall_use_push = true
 let loc_external_arguments arg =
   fatal_error "Proc.loc_external_arguments"
 let loc_external_results res =
-  let (loc, ofs) = calling_conventions 0 0 100 100 not_supported res in loc
+  match res with
+  | [|{typ=Int};{typ=Int}|] -> [|eax; edx|]
+  | _ ->
+      let (loc, ofs) = calling_conventions 0 0 100 100 not_supported res in loc
 
 let loc_exn_bucket = eax
 

@@ -58,6 +58,7 @@ let last_objfiles = ref []
 (* Check validity of module name *)
 let is_unit_name name =
   try
+    if name = "" then raise Exit;
     begin match name.[0] with
     | 'A'..'Z' -> ()
     | _ ->
@@ -214,6 +215,17 @@ let read_OCAMLPARAM ppf position =
                                         "non-integer parameter for \"inline\""))
         end
 
+      (* color output *)
+      | "color" ->
+          begin match parse_color_setting v with
+          | None ->
+            Location.print_warning Location.none ppf
+              (Warnings.Bad_env_variable ("OCAMLPARAM",
+               "bad value for \"color\", \
+                (expected \"auto\", \"always\" or \"never\")"))
+          | Some setting -> color := setting
+          end
+
       | "intf-suffix" -> Config.interface_suffix := v
 
       | "I" -> begin
@@ -276,6 +288,8 @@ let read_OCAMLPARAM ppf position =
 
       | "can-discard" ->
         can_discard := v ::!can_discard
+
+      | "timings" -> set "timings" [ print_timings ] v
 
       | _ ->
         if not (List.mem name !can_discard) then begin

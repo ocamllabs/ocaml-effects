@@ -141,7 +141,8 @@ let rec check_recordwith_updates id e =
 
 let rec size_of_lambda = function
   | Lfunction{kind; params; body} as funct ->
-      RHS_function (1 + IdentSet.cardinal(free_variables funct), List.length params)
+      RHS_function (1 + IdentSet.cardinal(free_variables funct),
+                    List.length params)
   | Llet (Strict, id, Lprim (Pduprecord (kind, size), _), body)
     when check_recordwith_updates id body ->
       begin match kind with
@@ -457,7 +458,7 @@ let rec comp_expr env exp sz cont =
       end
   | Lconst cst ->
       Kconst cst :: cont
-  | Lapply(func, args, info) ->
+  | Lapply{ap_func = func; ap_args = args} ->
       let nargs = List.length args in
       if is_tailcall cont then begin
         comp_args env args sz
@@ -557,14 +558,16 @@ let rec comp_expr env exp sz cont =
               comp_init (add_var id (sz+1) new_env) (sz+1) rem
         and comp_nonrec new_env sz i = function
           | [] -> comp_rec new_env sz ndecl decl_size
-          | (id, exp, (RHS_block _ | RHS_floatblock _ | RHS_function _)) :: rem ->
+          | (id, exp, (RHS_block _ | RHS_floatblock _ | RHS_function _))
+            :: rem ->
               comp_nonrec new_env sz (i-1) rem
           | (id, exp, RHS_nonrec) :: rem ->
               comp_expr new_env exp sz
                 (Kassign (i-1) :: comp_nonrec new_env sz (i-1) rem)
         and comp_rec new_env sz i = function
           | [] -> comp_expr new_env body sz (add_pop ndecl cont)
-          | (id, exp, (RHS_block _ | RHS_floatblock _ | RHS_function _)) :: rem ->
+          | (id, exp, (RHS_block _ | RHS_floatblock _ | RHS_function _))
+            :: rem ->
               comp_expr new_env exp sz
                 (Kpush :: Kacc i :: Kccall("caml_update_dummy", 2) ::
                  comp_rec new_env sz (i-1) rem)
@@ -579,7 +582,11 @@ let rec comp_expr env exp sz cont =
       comp_expr env arg sz (add_const_unit cont)
   | Lprim(Pdirapply loc, [func;arg])
   | Lprim(Prevapply loc, [arg;func]) ->
-      let exp = Lapply(func, [arg], mk_apply_info loc) in
+      let exp = Lapply{ap_should_be_tailcall=false;
+                       ap_loc=loc;
+                       ap_func=func;
+                       ap_args=[arg];
+                       ap_inlined=Default_inline} in
       comp_expr env exp sz cont
   | Lprim(Pnot, [arg]) ->
       let newcont =
@@ -842,7 +849,7 @@ let rec comp_expr env exp sz cont =
       | Lev_after ty ->
           let info =
             match lam with
-              Lapply(_, args, _)      -> Event_return (List.length args)
+              Lapply{ap_args = args}  -> Event_return (List.length args)
             | Lsend(_, _, _, args, _) -> Event_return (List.length args + 1)
             | _                       -> Event_other
           in
@@ -899,10 +906,6 @@ and comp_binary_test env cond ifso ifnot sz cont =
             comp_expr env ifso sz (branch_end :: cont2) in
 
   comp_expr env cond sz cont_cond
-
-(* Compile string switch *)
-
-and comp_string_switch env arg cases default sz cont = ()
 
 (**** Compilation of a code block (with tracking of stack usage) ****)
 

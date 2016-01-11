@@ -13,6 +13,7 @@
 (** Top modules dependencies. *)
 
 module StrS = Depend.StringSet
+module StrM = Depend.StringMap
 module Module = Odoc_module
 module Type = Odoc_type
 
@@ -23,12 +24,12 @@ let set_to_list s =
 
 let impl_dependencies ast =
   Depend.free_structure_names := StrS.empty;
-  Depend.add_use_file StrS.empty [Parsetree.Ptop_def ast];
+  Depend.add_use_file StrM.empty [Parsetree.Ptop_def ast];
   set_to_list !Depend.free_structure_names
 
 let intf_dependencies ast =
   Depend.free_structure_names := StrS.empty;
-  Depend.add_signature StrS.empty ast;
+  Depend.add_signature StrM.empty ast;
   set_to_list !Depend.free_structure_names
 
 
@@ -48,8 +49,8 @@ module Dep =
 
     type node = {
         id : id ;
-        mutable near : S.t ; (** fils directs *)
-        mutable far : (id * S.t) list ; (** fils indirects, par quel fils *)
+        mutable near : S.t ; (** direct children *)
+        mutable far : (id * S.t) list ; (** indirect children, from which children path *)
         reflex : bool ; (** reflexive or not, we keep
                            information here to remove the node itself from its direct children *)
       }
@@ -77,7 +78,7 @@ module Dep =
       if S.mem n.id acc then
         acc
       else
-        (* optimisation plus tard : utiliser le champ far si non vide ? *)
+        (* potential optimisation: use far field if nonempty? *)
         S.fold
           (fun child -> fun acc2 ->
             trans_closure graph acc2 (get_node graph child))

@@ -13,6 +13,7 @@
 (* Miscellaneous useful types and functions *)
 
 val fatal_error: string -> 'a
+val fatal_errorf: ('a, Format.formatter, unit, 'b) format4 -> 'a
 exception Fatal_error
 
 val try_finally : (unit -> 'a) -> (unit -> unit) -> 'a;;
@@ -25,6 +26,8 @@ val for_all2: ('a -> 'b -> bool) -> 'a list -> 'b list -> bool
         (* Same as [List.for_all] but for a binary predicate.
            In addition, this [for_all2] never fails: given two lists
            with different lengths, it returns false. *)
+val filter_map: ('a -> 'b option) -> 'a list -> 'b list
+        (* Same as [List.map] but removes [None] from the output *)
 val replicate_list: 'a -> int -> 'a list
         (* [replicate_list elem n] is the list with [n] elements
            all identical to [elem]. *)
@@ -87,6 +90,13 @@ val no_overflow_lsl: int -> int -> bool
         (* [no_overflow_lsl n k] returns [true] if the computation of
            [n lsl k] does not overflow. *)
 
+module Int_literal_converter : sig
+  val int : string -> int
+  val int32 : string -> int32
+  val int64 : string -> int64
+  val nativeint : string -> nativeint
+end
+
 val chop_extension_if_any: string -> string
         (* Like Filename.chop_extension but returns the initial file
            name if it has no extension *)
@@ -105,8 +115,9 @@ val search_substring: string -> string -> int -> int
            does not occur. *)
 
 val replace_substring: before:string -> after:string -> string -> string
-        (* [search_substring ~before ~after str] replaces all occurences
-           of [before] with [after] in [str] and returns the resulting string. *)
+        (* [search_substring ~before ~after str] replaces all
+           occurences of [before] with [after] in [str] and returns
+           the resulting string. *)
 
 val rev_split_words: string -> string list
         (* [rev_split_words s] splits [s] in blank-separated words, and return
@@ -193,3 +204,44 @@ module StringSet: Set.S with type elt = string
 module StringMap: Map.S with type key = string
 (* TODO: replace all custom instantiations of StringSet/StringMap in various
    compiler modules with this one. *)
+
+(* Color handling *)
+module Color : sig
+  type color =
+    | Black
+    | Red
+    | Green
+    | Yellow
+    | Blue
+    | Magenta
+    | Cyan
+    | White
+  ;;
+
+  type style =
+    | FG of color (* foreground *)
+    | BG of color (* background *)
+    | Bold
+    | Reset
+
+  val ansi_of_style_l : style list -> string
+  (* ANSI escape sequence for the given style *)
+
+  type styles = {
+    error: style list;
+    warning: style list;
+    loc: style list;
+  }
+
+  val default_styles: styles
+  val get_styles: unit -> styles
+  val set_styles: styles -> unit
+
+  val setup : Clflags.color_setting -> unit
+  (* [setup opt] will enable or disable color handling on standard formatters
+     according to the value of color setting [opt].
+     Only the first call to this function has an effect. *)
+
+  val set_color_tag_handling : Format.formatter -> unit
+  (* adds functions to support color tags to the given formatter. *)
+end

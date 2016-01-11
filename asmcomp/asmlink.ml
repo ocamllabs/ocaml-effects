@@ -94,7 +94,9 @@ let lib_ccopts = ref []
 let add_ccobjs origin l =
   if not !Clflags.no_auto_link then begin
     lib_ccobjs := l.lib_ccobjs @ !lib_ccobjs;
-    let replace_origin = Misc.replace_substring ~before:"$CAMLORIGIN" ~after:origin in
+    let replace_origin =
+      Misc.replace_substring ~before:"$CAMLORIGIN" ~after:origin
+    in
     lib_ccopts := List.map replace_origin l.lib_ccopts @ !lib_ccopts
   end
 
@@ -201,7 +203,8 @@ let scan_file obj_name tolink = match read_file obj_name with
 let make_startup_file ppf units_list =
   let compile_phrase p = Asmgen.compile_phrase ppf p in
   Location.input_name := "caml_startup"; (* set name of "current" input *)
-  Compilenv.reset "_startup"; (* set the name of the "current" compunit *)
+  Compilenv.reset ~source_provenance:Timings.Startup "_startup";
+  (* set the name of the "current" compunit *)
   Emit.begin_assembly ();
   let name_list =
     List.flatten (List.map (fun (info,_,_) -> info.ui_defines) units_list) in
@@ -234,7 +237,7 @@ let make_startup_file ppf units_list =
 let make_shared_startup_file ppf units =
   let compile_phrase p = Asmgen.compile_phrase ppf p in
   Location.input_name := "caml_startup";
-  Compilenv.reset "_shared_startup";
+  Compilenv.reset ~source_provenance:Timings.Startup "_shared_startup";
   Emit.begin_assembly ();
   List.iter compile_phrase
     (Cmmgen.generic_functions true (List.map fst units));
@@ -265,7 +268,7 @@ let link_shared ppf objfiles output_name =
     then output_name ^ ".startup" ^ ext_asm
     else Filename.temp_file "camlstartup" ext_asm in
   let startup_obj = output_name ^ ".startup" ^ ext_obj in
-  Asmgen.compile_unit
+  Asmgen.compile_unit ~source_provenance:Timings.Startup
     startup !Clflags.keep_startup_file startup_obj
     (fun () ->
        make_shared_startup_file ppf
@@ -283,7 +286,8 @@ let call_linker file_list startup_file output_name =
   let files, c_lib =
     if (not !Clflags.output_c_object) || main_dll || main_obj_runtime then
       files @ (List.rev !Clflags.ccobjs) @ runtime_lib (),
-      (if !Clflags.nopervasives || main_obj_runtime then "" else Config.native_c_libraries)
+      (if !Clflags.nopervasives || main_obj_runtime
+       then "" else Config.native_c_libraries)
     else
       files, ""
   in
@@ -323,11 +327,12 @@ let link ppf objfiles output_name =
     then output_name ^ ".startup" ^ ext_asm
     else Filename.temp_file "camlstartup" ext_asm in
   let startup_obj = Filename.temp_file "camlstartup" ext_obj in
-  Asmgen.compile_unit
+  Asmgen.compile_unit ~source_provenance:Timings.Startup
     startup !Clflags.keep_startup_file startup_obj
     (fun () -> make_startup_file ppf units_tolink);
   Misc.try_finally
-    (fun () -> call_linker (List.map object_file_name objfiles) startup_obj output_name)
+    (fun () ->
+      call_linker (List.map object_file_name objfiles) startup_obj output_name)
     (fun () -> remove_file startup_obj)
 
 (* Error report *)

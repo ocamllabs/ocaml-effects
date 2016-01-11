@@ -83,7 +83,7 @@ struct caml_thread_struct {
   intnat trap_barrier_off;
 
   value backtrace_pos;          /* The backtrace info for this thread */
-  code_t * backtrace_buffer;
+  backtrace_slot * backtrace_buffer;
   value backtrace_last_exn;
   value status;                 /* RUNNABLE, KILLED. etc (see below) */
   value fd;     /* File descriptor on which we're doing read or write */
@@ -230,6 +230,7 @@ value thread_new(value clos)          /* ML */
   Begin_root(clos);
     th = (caml_thread_t) alloc_shr(sizeof(struct caml_thread_struct)
                                    / sizeof(value), 0);
+    stack = caml_alloc_shr(Thread_stack_size, Stack_tag);
   End_roots();
   th->ident = next_ident;
   next_ident = Val_int(Int_val(next_ident) + 1);

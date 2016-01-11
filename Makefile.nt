@@ -12,120 +12,11 @@
 
 # The main Makefile
 
-include config/Makefile
-CAMLRUN ?= boot/ocamlrun
-CAMLYACC ?= boot/ocamlyacc
-include stdlib/StdlibModules
-
-CAMLC=$(CAMLRUN) boot/ocamlc -nostdlib -I boot
-CAMLOPT=$(CAMLRUN) ./ocamlopt -nostdlib -I stdlib -I otherlibs/dynlink
-COMPFLAGS=-strict-sequence -w +33..39+48 -warn-error A -bin-annot $(INCLUDES)
-LINKFLAGS=
-YACCFLAGS=
-CAMLLEX=$(CAMLRUN) boot/ocamllex
-CAMLDEP=$(CAMLRUN) tools/ocamldep
-DEPFLAGS=$(INCLUDES)
-
-OCAMLBUILDBYTE=$(WITH_OCAMLBUILD:=.byte)
-OCAMLBUILDNATIVE=$(WITH_OCAMLBUILD:=.native)
-
-OCAMLDOC_OPT=$(WITH_OCAMLDOC:=.opt)
-
-INCLUDES=-I utils -I parsing -I typing -I bytecomp -I asmcomp -I driver \
-	 -I toplevel
-
-UTILS=utils/misc.cmo utils/tbl.cmo utils/config.cmo \
-  utils/clflags.cmo utils/terminfo.cmo utils/ccomp.cmo utils/warnings.cmo \
-  utils/consistbl.cmo
-
-PARSING=parsing/location.cmo parsing/longident.cmo \
-  parsing/docstrings.cmo parsing/ast_helper.cmo \
-  parsing/syntaxerr.cmo parsing/parser.cmo \
-  parsing/lexer.cmo parsing/parse.cmo parsing/printast.cmo \
-  parsing/pprintast.cmo \
-  parsing/ast_mapper.cmo
-
-TYPING=typing/ident.cmo typing/path.cmo \
-  typing/primitive.cmo typing/types.cmo \
-  typing/btype.cmo typing/oprint.cmo \
-  typing/subst.cmo typing/predef.cmo \
-  typing/datarepr.cmo typing/cmi_format.cmo typing/env.cmo \
-  typing/typedtree.cmo typing/printtyped.cmo typing/ctype.cmo \
-  typing/printtyp.cmo typing/includeclass.cmo \
-  typing/mtype.cmo typing/envaux.cmo typing/includecore.cmo \
-  typing/typedtreeIter.cmo typing/typedtreeMap.cmo \
-  typing/tast_mapper.cmo \
-  typing/cmt_format.cmo \
-  typing/includemod.cmo typing/typetexp.cmo typing/parmatch.cmo \
-  typing/stypes.cmo typing/typecore.cmo \
-  typing/typedecl.cmo typing/typeclass.cmo \
-  typing/typemod.cmo typing/untypeast.cmo
-
-COMP=bytecomp/lambda.cmo bytecomp/printlambda.cmo \
-  bytecomp/typeopt.cmo bytecomp/switch.cmo bytecomp/matching.cmo \
-  bytecomp/translobj.cmo bytecomp/translcore.cmo \
-  bytecomp/translclass.cmo bytecomp/translmod.cmo \
-  bytecomp/simplif.cmo bytecomp/runtimedef.cmo \
-  driver/pparse.cmo driver/main_args.cmo \
-  driver/compenv.cmo driver/compmisc.cmo
-
-COMMON=$(UTILS) $(PARSING) $(TYPING) $(COMP)
-
-BYTECOMP=bytecomp/meta.cmo bytecomp/instruct.cmo bytecomp/bytegen.cmo \
-  bytecomp/printinstr.cmo bytecomp/opcodes.cmo bytecomp/emitcode.cmo \
-  bytecomp/bytesections.cmo bytecomp/dll.cmo bytecomp/symtable.cmo \
-  bytecomp/bytelink.cmo bytecomp/bytelibrarian.cmo bytecomp/bytepackager.cmo \
-  driver/errors.cmo driver/compile.cmo
-
-INTEL_ASM=\
-  asmcomp/x86_proc.cmo \
-  asmcomp/x86_dsl.cmo \
-  asmcomp/x86_gas.cmo \
-  asmcomp/x86_masm.cmo
-
-ARCH_SPECIFIC_ASMCOMP=
-ifeq ($(ARCH),i386)
-ARCH_SPECIFIC_ASMCOMP=$(INTEL_ASM)
-endif
-ifeq ($(ARCH),amd64)
-ARCH_SPECIFIC_ASMCOMP=$(INTEL_ASM)
-endif
-
-ASMCOMP=\
-  $(ARCH_SPECIFIC_ASMCOMP) \
-  asmcomp/arch.cmo asmcomp/debuginfo.cmo \
-  asmcomp/cmm.cmo asmcomp/printcmm.cmo \
-  asmcomp/reg.cmo asmcomp/mach.cmo asmcomp/proc.cmo \
-  asmcomp/clambda.cmo asmcomp/printclambda.cmo asmcomp/compilenv.cmo \
-  asmcomp/closure.cmo asmcomp/strmatch.cmo asmcomp/cmmgen.cmo \
-  asmcomp/printmach.cmo asmcomp/selectgen.cmo asmcomp/selection.cmo \
-  asmcomp/comballoc.cmo \
-  asmcomp/CSEgen.cmo asmcomp/CSE.cmo \
-  asmcomp/liveness.cmo \
-  asmcomp/spill.cmo asmcomp/split.cmo \
-  asmcomp/interf.cmo asmcomp/coloring.cmo \
-  asmcomp/reloadgen.cmo asmcomp/reload.cmo \
-  asmcomp/deadcode.cmo \
-  asmcomp/printlinear.cmo asmcomp/linearize.cmo \
-  asmcomp/schedgen.cmo asmcomp/scheduling.cmo \
-  asmcomp/emitaux.cmo asmcomp/emit.cmo asmcomp/asmgen.cmo \
-  asmcomp/asmlink.cmo asmcomp/asmlibrarian.cmo asmcomp/asmpackager.cmo \
-  driver/opterrors.cmo driver/optcompile.cmo
-
-TOPLEVEL=toplevel/genprintval.cmo toplevel/toploop.cmo \
-  toplevel/trace.cmo toplevel/topdirs.cmo toplevel/topmain.cmo
-
-BYTESTART=driver/main.cmo
-
-OPTSTART=driver/optmain.cmo
-
-TOPLEVELSTART=toplevel/topstart.cmo
-
-PERVASIVES=$(STDLIB_MODULES) outcometree topdirs toploop
+include Makefile.shared
 
 # For users who don't read the INSTALL file
 defaultentry:
-	@echo "Please refer to the installation instructions in file README.win32."
+	@echo "Please refer to the installation instructions in file README.win32.adoc."
 
 # Recompile the system using the bootstrap compiler
 all: runtime ocamlc ocamllex ocamlyacc ocamltools library ocaml \
@@ -194,10 +85,10 @@ backup:
 # Promote the newly compiled system to the rank of cross compiler
 # (Runs on the old runtime, produces code for the new runtime)
 promote-cross:
-	cp ocamlc boot/ocamlc
-	cp lex/ocamllex boot/ocamllex
+	$(CAMLRUN) tools/stripdebug ocamlc boot/ocamlc
+	$(CAMLRUN) tools/stripdebug lex/ocamllex boot/ocamllex
 	cp yacc/ocamlyacc.exe boot/ocamlyacc.exe
-	cp tools/ocamldep boot/ocamldep
+	$(CAMLRUN) tools/stripdebug tools/ocamldep boot/ocamldep
 	cd stdlib ; cp $(LIBFILES) ../boot
 
 # Promote the newly compiled system to the rank of bootstrap compiler
@@ -213,9 +104,12 @@ restore:
 
 # Check if fixpoint reached
 compare:
-	- cmp -i 4096 boot/ocamlc ocamlc
-	- cmp -i 4096 boot/ocamllex lex/ocamllex
-	- cmp -i 4096 boot/ocamldep tools/ocamldep
+	@if $(CAMLRUN) tools/cmpbyt boot/ocamlc ocamlc \
+         && $(CAMLRUN) tools/cmpbyt boot/ocamllex lex/ocamllex \
+         && $(CAMLRUN) tools/cmpbyt boot/ocamldep tools/ocamldep; \
+	then echo "Fixpoint reached, bootstrap succeeded."; \
+	else echo "Fixpoint not reached, try one more bootstrapping cycle."; \
+	fi	
 
 # Remove old bootstrap compilers
 cleanboot:
@@ -223,17 +117,17 @@ cleanboot:
 
 # Compile the native-code compiler
 opt-core:
-	$(MAKE) -f Makefile.nt runtimeopt
-	$(MAKE) -f Makefile.nt ocamlopt
-	$(MAKE) -f Makefile.nt libraryopt
+	$(MAKEREC) runtimeopt
+	$(MAKEREC) ocamlopt
+	$(MAKEREC) libraryopt
 
 opt:
-	$(MAKE) -f Makefile.nt opt-core
-	$(MAKE) -f Makefile.nt otherlibrariesopt ocamltoolsopt
+	$(MAKEREC) opt-core
+	$(MAKEREC) otherlibrariesopt ocamltoolsopt
 
 # Native-code versions of the tools
 opt.opt: core opt-core ocamlc.opt all ocamlopt.opt ocamllex.opt \
-         ocamltoolsopt ocamltoolsopt.opt $(OCAMLBUILDNATIVE) $(OCAMLDOC_OPT)
+         ocamltoolsopt ocamltoolsopt.opt otherlibrariesopt $(OCAMLBUILDNATIVE) $(OCAMLDOC_OPT)
 
 # Complete build using fast compilers
 world.opt: coldstart opt.opt
@@ -284,8 +178,8 @@ installbyt:
 	if test -n "$(WITH_OCAMLBUILD)"; then (cd ocamlbuild; $(MAKE) install); \
 	   else :; fi
 	cp config/Makefile $(INSTALL_LIBDIR)/Makefile.config
-	cp README $(INSTALL_DISTRIB)/Readme.general.txt
-	cp README.win32 $(INSTALL_DISTRIB)/Readme.windows.txt
+	cp README.adoc $(INSTALL_DISTRIB)/Readme.general.txt
+	cp README.win32.adoc $(INSTALL_DISTRIB)/Readme.windows.txt
 	cp LICENSE $(INSTALL_DISTRIB)/License.txt
 	cp Changes $(INSTALL_DISTRIB)/Changes.txt
 
@@ -303,7 +197,7 @@ installopt:
 	  $(MAKEREC) -C otherlibs/$$i installopt || exit $$?; \
 	done
 	if test -f ocamlopt.opt ; then $(MAKEREC) installoptopt; fi
-	cd tools; $(MAKE) installopt
+	cd tools; $(MAKEREC) installopt
 
 installoptopt:
 	cp ocamlc.opt $(INSTALL_BINDIR)/ocamlc.opt$(EXE)
@@ -380,7 +274,7 @@ ocamlnat: ocamlopt otherlibs/dynlink/dynlink.cmxa $(NATTOPOBJS:.cmo=.cmx)
 toplevel/opttoploop.cmx: otherlibs/dynlink/dynlink.cmxa
 
 otherlibs/dynlink/dynlink.cmxa: otherlibs/dynlink/natdynlink.ml
-	cd otherlibs/dynlink && $(MAKE) -f Makefile.nt allopt
+	cd otherlibs/dynlink && $(MAKEREC) allopt
 
 
 # The configuration file
@@ -756,7 +650,7 @@ depend: beforedepend
 alldepend:: depend
 
 distclean:
-	$(MAKE) clean
+	$(MAKEREC) clean
 	rm -f asmrun/.depend.nt byterun/.depend.nt
 	rm -f boot/ocamlrun boot/ocamlrun.exe boot/camlheader boot/ocamlyacc \
 	      boot/*.cm* boot/libcamlrun.a

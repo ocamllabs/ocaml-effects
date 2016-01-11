@@ -38,8 +38,6 @@ let rename i =
 
 let name i = i.name
 
-let stamp i = i.stamp
-
 let unique_name i = i.name ^ "_" ^ string_of_int i.stamp
 
 let unique_toplevel_name i = i.name ^ "/" ^ string_of_int i.stamp
@@ -53,6 +51,8 @@ let same i1 i2 = i1 = i2
        if i1.stamp <> 0
        then i1.stamp = i2.stamp
        else i2.stamp = 0 && i1.name = i2.name *)
+
+let compare i1 i2 = Pervasives.compare i1 i2
 
 let binding_time i = i.stamp
 

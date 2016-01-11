@@ -1,3 +1,16 @@
+(***********************************************************************)
+(*                                                                     *)
+(*                                OCaml                                *)
+(*                                                                     *)
+(*                         Benoit Vaugon, ENSTA                        *)
+(*                                                                     *)
+(*  Copyright 2014 Institut National de Recherche en Informatique et   *)
+(*  en Automatique.  All rights reserved.  This file is distributed    *)
+(*  under the terms of the GNU Library General Public License, with    *)
+(*  the special exception on linking described in file ../LICENSE.     *)
+(*                                                                     *)
+(***********************************************************************)
+
 (* Padding position. *)
 type padty =
   | Left   (* Text is left justified ('-' option).               *)
@@ -23,6 +36,8 @@ type float_conv =
   | Float_g | Float_pg | Float_sg  (*  %g | %+g | % g  *)
   | Float_G | Float_pG | Float_sG  (*  %G | %+G | % G  *)
   | Float_F                        (*  %F              *)
+  | Float_h | Float_ph | Float_sh  (*  %h | %+h | % h  *)
+  | Float_H | Float_pH | Float_sH  (*  %H | %+H | % H  *)
 
 (***)
 
@@ -135,7 +150,7 @@ parameter is as follows:
     (char -> 'a1, 'b1, 'c1, 'd1, 'e1, 'f1,
      char -> 'a2, 'b2, 'c2, 'd2, 'e2, 'f2) fmtty_rel
 
-In the general case, the term structure of fmtty_rel is (almost¹)
+In the general case, the term structure of fmtty_rel is (almost[1])
 isomorphic to the fmtty of the previous implementation: every
 constructor is re-read with a binary, relational type, instead of the
 previous unary typing. fmtty can then be re-defined as the diagonal of
@@ -169,7 +184,7 @@ to transpose between related format types.
       'a2, 'b2, 'c2, 'd2, 'e2, 'f2) fmtty_rel
   -> ('a2, 'b2, 'c2, 'd2, 'e2, 'f2) fmt
 
-NOTE ¹: the typing of Format_subst_ty requires not one format type, but
+NOTE [1]: the typing of Format_subst_ty requires not one format type, but
 two, one to establish the link between the format argument and the
 first six parameters, and the other for the link between the format
 argumant and the last six parameters.
@@ -290,7 +305,8 @@ and ('a1, 'b1, 'c1, 'd1, 'e1, 'f1,
       ('a1, 'b1, 'c1, 'd1, 'e1, 'f1,
        'a2, 'b2, 'c2, 'd2, 'e2, 'f2) fmtty_rel ->
       (('g, 'h, 'i, 'j, 'k, 'l) format6 -> 'a1, 'b1, 'c1, 'd1, 'e1, 'f1,
-       ('g, 'h, 'i, 'j, 'k, 'l) format6 -> 'a2, 'b2, 'c2, 'd2, 'e2, 'f2) fmtty_rel
+       ('g, 'h, 'i, 'j, 'k, 'l) format6 -> 'a2, 'b2, 'c2, 'd2, 'e2, 'f2)
+           fmtty_rel
   | Format_subst_ty :                                         (* %(...%) *)
       ('g, 'h, 'i, 'j, 'k, 'l,
        'g1, 'b1, 'c1, 'j1, 'd1, 'a1) fmtty_rel *
@@ -299,7 +315,8 @@ and ('a1, 'b1, 'c1, 'd1, 'e1, 'f1,
       ('a1, 'b1, 'c1, 'd1, 'e1, 'f1,
        'a2, 'b2, 'c2, 'd2, 'e2, 'f2) fmtty_rel ->
       (('g, 'h, 'i, 'j, 'k, 'l) format6 -> 'g1, 'b1, 'c1, 'j1, 'e1, 'f1,
-       ('g, 'h, 'i, 'j, 'k, 'l) format6 -> 'g2, 'b2, 'c2, 'j2, 'e2, 'f2) fmtty_rel
+       ('g, 'h, 'i, 'j, 'k, 'l) format6 -> 'g2, 'b2, 'c2, 'j2, 'e2, 'f2)
+           fmtty_rel
 
   (* Printf and Format specific constructors. *)
   | Alpha_ty :                                                (* %a  *)
@@ -312,7 +329,7 @@ and ('a1, 'b1, 'c1, 'd1, 'e1, 'f1,
        'a2, 'b2, 'c2, 'd2, 'e2, 'f2) fmtty_rel ->
       (('b1 -> 'c1) -> 'a1, 'b1, 'c1, 'd1, 'e1, 'f1,
        ('b2 -> 'c2) -> 'a2, 'b2, 'c2, 'd2, 'e2, 'f2) fmtty_rel
-  | Any_ty :                                                  (* Used for custom formats *)
+  | Any_ty :                                    (* Used for custom formats *)
       ('a1, 'b1, 'c1, 'd1, 'e1, 'f1,
        'a2, 'b2, 'c2, 'd2, 'e2, 'f2) fmtty_rel ->
       ('x -> 'a1, 'b1, 'c1, 'd1, 'e1, 'f1,

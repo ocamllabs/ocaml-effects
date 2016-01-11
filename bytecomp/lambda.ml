@@ -137,7 +137,7 @@ and comparison =
 and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
 
-and boxed_integer =
+and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
 
 and bigarray_kind =
@@ -166,17 +166,10 @@ type structured_constant =
   | Const_float_array of string list
   | Const_immstring of string
 
-type apply_info = {
-  apply_loc : Location.t;
-  apply_should_be_tailcall : bool; (* true if [@tailcall] was specified *)
-}
-
-let mk_apply_info ?(tailcall=false) loc =
-  {apply_loc=loc;
-   apply_should_be_tailcall=tailcall; }
-
-let no_apply_info =
-  {apply_loc=Location.none; apply_should_be_tailcall=false;}
+type inline_attribute =
+  | Always_inline (* [@inline] or [@inline always] *)
+  | Never_inline (* [@inline never] *)
+  | Default_inline (* no [@inline] attribute *)
 
 type function_kind = Curried | Tupled
 
@@ -186,10 +179,15 @@ type meth_kind = Self | Public | Cached
 
 type shared_code = (int * int) list
 
+type function_attribute = {
+  inline : inline_attribute;
+  is_a_functor: bool;
+}
+
 type lambda =
     Lvar of Ident.t
   | Lconst of structured_constant
-  | Lapply of lambda * lambda list * apply_info
+  | Lapply of lambda_apply
   | Lfunction of lfunction
   | Llet of let_kind * Ident.t * lambda * lambda
   | Lletrec of (Ident.t * lambda) list * lambda
@@ -211,7 +209,15 @@ type lambda =
 and lfunction =
   { kind: function_kind;
     params: Ident.t list;
-    body: lambda }
+    body: lambda;
+    attr: function_attribute; } (* specified with [@inline] attribute *)
+
+and lambda_apply =
+  { ap_func : lambda;
+    ap_args : lambda list;
+    ap_loc : Location.t;
+    ap_should_be_tailcall : bool;
+    ap_inlined : inline_attribute }
 
 and lambda_switch =
   { sw_numconsts: int;
@@ -234,6 +240,11 @@ and lambda_event_kind =
 let const_unit = Const_pointer 0
 
 let lambda_unit = Lconst const_unit
+
+let default_function_attribute = {
+  inline = Default_inline;
+  is_a_functor = false;
+}
 
 (* Build sharing keys *)
 (*
@@ -262,8 +273,10 @@ let make_key e =
         (* Mutable constants are not shared *)
         raise Not_simple
     | Lconst _ -> e
-    | Lapply (e,es,info) ->
-        Lapply (tr_rec env e,tr_recs env es,{info with apply_loc=Location.none})
+    | Lapply ap ->
+        Lapply {ap with ap_func = tr_rec env ap.ap_func;
+                        ap_args = tr_recs env ap.ap_args;
+                        ap_loc = Location.none}
     | Llet (Alias,x,ex,e) -> (* Ignore aliases -> substitute *)
         let ex = tr_rec env ex in
         tr_rec (Ident.add x ex env) e
@@ -344,7 +357,7 @@ let iter_opt f = function
 let iter f = function
     Lvar _
   | Lconst _ -> ()
-  | Lapply(fn, args, _) ->
+  | Lapply{ap_func = fn; ap_args = args} ->
       f fn; List.iter f args
   | Lfunction{kind; params; body} ->
       f body
@@ -491,8 +504,10 @@ let subst_lambda s lam =
     Lvar id as l ->
       begin try Ident.find_same id s with Not_found -> l end
   | Lconst sc as l -> l
-  | Lapply(fn, args, loc) -> Lapply(subst fn, List.map subst args, loc)
-  | Lfunction{kind; params; body} -> Lfunction{kind; params; body = subst body}
+  | Lapply ap ->
+      Lapply{ap with ap_func = subst ap.ap_func; ap_args = List.map subst ap.ap_args}
+  | Lfunction{kind; params; body; attr} ->
+      Lfunction{kind; params; body = subst body; attr}
   | Llet(str, id, arg, body) -> Llet(str, id, subst arg, subst body)
   | Lletrec(decl, body) -> Lletrec(List.map subst_decl decl, subst body)
   | Lprim(p, args) -> Lprim(p, List.map subst args)

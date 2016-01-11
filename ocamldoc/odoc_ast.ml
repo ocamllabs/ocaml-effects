@@ -60,7 +60,7 @@ module Typedtree_search =
     let iter_val_pattern = function
       | Typedtree.Tpat_any -> None
       | Typedtree.Tpat_var (name, _) -> Some (Name.from_ident name)
-      | Typedtree.Tpat_tuple _ -> None (* A VOIR quand on traitera les tuples *)
+      | Typedtree.Tpat_tuple _ -> None (* FIXME when we will handle tuples *)
       | _ -> None
 
     let add_to_hashes table table_values tt =
@@ -304,7 +304,7 @@ module Analyser =
 
       | {c_lhs=pattern_param} :: second_ele :: q ->
           (* implicit pattern matching -> anonymous parameter and no more parameter *)
-          (* A VOIR : le label ? *)
+          (* FIXME : label ? *)
           let parameter = Odoc_parameter.Tuple ([], Odoc_env.subst_type env pattern_param.pat_type) in
           [ parameter ]
 
@@ -407,11 +407,11 @@ module Analyser =
 
        | (Typedtree.Tpat_tuple lpat, _) ->
            (* new identifiers are defined *)
-           (* A VOIR : by now we don't accept to have global variables defined in tuples *)
+           (* FIXME : by now we don't accept to have global variables defined in tuples *)
            []
 
        | _ ->
-           (* something else, we don't care ? A VOIR *)
+           (* something else, we don't care ? FIXME *)
            []
 
     (** This function takes a Typedtree.class_expr and returns a string which can stand for the class name.
@@ -455,7 +455,7 @@ module Analyser =
            | l ->
                match l with
                  [] ->
-                   (* cas impossible, on l'a filtre avant *)
+                   (* impossible case, it has already been filtered *)
                    assert false
                | {c_lhs=pattern_param} :: second_ele :: q ->
                    (* implicit pattern matching -> anonymous parameter *)
@@ -700,11 +700,11 @@ module Analyser =
               Typedtree.Tcl_ident (p,_,_) -> Name.from_path p
             | _ ->
                 (* we try to get the name from the environment. *)
-                (* A VOIR : dommage qu'on n'ait pas un Tclass_ident :-( meme quand on a class tutu = toto *)
+                (* FIXME : Unfortunately, we don't have a Tclass_ident :-( even for a class tutu = toto *)
                 Name.from_longident lid.txt
           in
-          (* On n'a pas ici les parametres de type sous forme de Types.type_expr,
-             par contre on peut les trouver dans le class_type *)
+          (* Here, type parameters are not present as Types.type_expr,
+             however they can be found in the class_type *)
           let params =
             match tt_class_exp.Typedtree.cl_type with
               Types.Cty_constr (p2, type_exp_list, cltyp) ->
@@ -787,9 +787,9 @@ module Analyser =
             (* we want an ident, or else the class applied will appear in the form object ... end,
                because if the class applied has no name, the code is kinda ugly, isn't it ? *)
             match tt_class_expr2.Typedtree.cl_desc with
-              Typedtree.Tcl_ident (p,_,_) -> Name.from_path p (* A VOIR : obtenir le nom complet *)
+              Typedtree.Tcl_ident (p,_,_) -> Name.from_path p (* FIXME : obtain the full name *)
             | _ ->
-                (* A VOIR : dommage qu'on n'ait pas un Tclass_ident :-( meme quand on a class tutu = toto *)
+                (* FIXME : Unfortunately, we don't have a Tclass_ident :-( even for a class tutu = toto *)
                 match p_class_expr2.Parsetree.pcl_desc with
                   Parsetree.Pcl_constr (lid, _) ->
                     (* we try to get the name from the environment. *)
@@ -798,7 +798,7 @@ module Analyser =
                     Odoc_messages.object_end
           in
           let param_exps = List.fold_left
-              (fun acc -> fun (_, exp_opt, _) ->
+              (fun acc -> fun (_, exp_opt) ->
                 match exp_opt with
                   None -> acc
                 | Some e -> acc @ [e])
@@ -833,7 +833,7 @@ module Analyser =
               env current_class_name comment_opt last_pos p_class_expr2
                 tt_class_expr2 table
             in
-            (* A VOIR : analyse du class type ? on n'a pas toutes les infos. cf. Odoc_sig.analyse_class_type_kind *)
+            (* FIXME analysis of the class type ? We don't have all the infos. cf. Odoc_sig.analyse_class_type_kind *)
           let class_type_kind =
             (*Sig.analyse_class_type_kind
               env
@@ -900,7 +900,7 @@ module Analyser =
         match item.str_desc with
           Typedtree.Tstr_include incl ->
             acc @ [
-                  { (* A VOIR : chercher dans les modules et les module types, avec quel env ? *)
+                  { (* FIXME : search within modules and module types, with which env ? *)
                     im_name = tt_name_from_module_expr incl.incl_mod ;
                     im_module = None ;
                     im_info = None ;
@@ -982,7 +982,7 @@ module Analyser =
         | Element_type t ->
              (function
                 Types.Sig_type (ident,_,_) ->
-                  (* A VOIR: il est possible que le detail du type soit cache *)
+                  (* FIXME: type details can be hidden *)
                   let n1 = Name.simple t.ty_name
                   and n2 = Ident.name ident in
                   n1 = n2
@@ -1099,7 +1099,7 @@ module Analyser =
           let rec iter_pat = function
             | Parsetree.Ppat_any -> None
             | Parsetree.Ppat_var name -> Some name
-            | Parsetree.Ppat_tuple _ -> None (* A VOIR quand on traitera les tuples *)
+            | Parsetree.Ppat_tuple _ -> None (* FIXME when we will handle tuples *)
             | Parsetree.Ppat_constraint (pat, _) -> iter_pat pat.Parsetree.ppat_desc
             | _ -> None
           in
@@ -1452,7 +1452,7 @@ module Analyser =
              let new_env = Odoc_env.add_module env new_module.m_name in
              let new_env2 =
                match new_module.m_type with
-                 (* A VOIR : cela peut-il etre Tmty_ident ? dans ce cas, on aurait pas la signature *)
+                 (* FIXME : can this be Tmty_ident? In this case, we would'nt have the signature *)
                  Types.Mty_signature s ->
                    Odoc_env.add_signature new_env new_module.m_name
                      ~rel: (Name.simple new_module.m_name) s
@@ -1467,8 +1467,8 @@ module Analyser =
           )
 
       | Parsetree.Pstr_recmodule mods ->
-          (* A VOIR ICI pb: pas de lien avec les module type
-             dans les contraintes sur les modules *)
+          (* FIXME Here problem: no link with module types
+             in module constraints *)
           let new_env =
             List.fold_left
               (fun acc_env {Parsetree.pmb_name=name;pmb_expr=mod_exp} ->
@@ -1556,7 +1556,7 @@ module Analyser =
           let new_env = Odoc_env.add_module_type env mt.mt_name in
           let new_env2 =
             match sig_mtype with
-              (* A VOIR : cela peut-il etre Tmty_ident ? dans ce cas, on n'aurait pas la signature *)
+              (* FIXME : can this be Tmty_ident? In this case, we would'nt have the signature *)
               Some (Types.Mty_signature s) ->
                 Odoc_env.add_signature new_env mt.mt_name ~rel: (Name.simple mt.mt_name) s
             | _ ->
@@ -1565,7 +1565,7 @@ module Analyser =
           (0, new_env2, [ Element_module_type mt ])
 
       | Parsetree.Pstr_open _ ->
-          (* A VOIR : enrichir l'environnement quand open ? *)
+          (* FIXME : extend the environment after open? *)
           let ele_comments = match comment_opt with
             None -> []
           | Some i ->
@@ -1685,7 +1685,7 @@ module Analyser =
               im_info = comment_opt ;
             }
           in
-          (0, env, [ Element_included_module im ]) (* A VOIR : etendre l'environnement ? avec quoi ? *)
+          (0, env, [ Element_included_module im ]) (* FIXME: extend the environment? With what? *)
 
      (** Analysis of a [Parsetree.module_expr] and a name to return a [t_module].*)
      and analyse_module env current_module_name module_name comment_opt p_module_expr tt_module_expr =
@@ -1694,7 +1694,7 @@ module Analyser =
       let pos_start = loc.Location.loc_start.Lexing.pos_cnum in
       let pos_end = loc.Location.loc_end.Lexing.pos_cnum in
       let modtype =
-        (* A VOIR : Odoc_env.subst_module_type env  ? *)
+        (* FIXME : Odoc_env.subst_module_type env  ? *)
         tt_module_expr.Typedtree.mod_type
       in
       let m_code_intf =
@@ -1764,7 +1764,7 @@ module Analyser =
              }
            in
            let dummy_complete_name = (*Name.concat "__"*) param.mp_name in
-           (* TODO: A VOIR CE __ *)
+           (* TODO: FIX THIS  __ *)
            let new_env = Odoc_env.add_module env dummy_complete_name in
            let m_base2 = analyse_module
                new_env

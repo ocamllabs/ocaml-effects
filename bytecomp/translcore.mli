@@ -19,19 +19,23 @@ open Lambda
 
 val transl_exp: expression -> lambda
 val transl_apply: ?should_be_tailcall:bool
-                  -> lambda -> (arg_label * expression option * optional) list
+                  -> ?inlined:inline_attribute
+                  -> lambda -> (arg_label * expression option) list
                   -> Location.t -> lambda
 val transl_let: rec_flag -> value_binding list -> lambda -> lambda
 val transl_primitive: Location.t -> Primitive.description -> Env.t
-                      -> Types.type_expr -> lambda
+                      -> Types.type_expr -> Path.t option -> lambda
 
 val check_recursive_lambda: Ident.t list -> lambda -> bool
+
+val used_primitives: (Path.t, Location.t) Hashtbl.t
 
 type error =
     Illegal_letrec_pat
   | Illegal_letrec_expr
   | Free_super_var
   | Unknown_builtin_primitive of string
+  | Unreachable_reached
 
 exception Error of Location.t * error
 

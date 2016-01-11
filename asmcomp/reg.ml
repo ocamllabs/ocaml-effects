@@ -127,6 +127,7 @@ let to_string r =
     | Addr -> "A"
     | Int -> "I"
     | Float -> "F"
+    | Val -> "V"
   in "("^loc_str^","^typ_str^")"
 
 

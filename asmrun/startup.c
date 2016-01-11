@@ -101,24 +101,30 @@ void caml_main(char **argv)
   value res;
   char tos;
 
+  caml_init_frame_descriptors();
   caml_init_ieee_floats();
 #ifdef _MSC_VER
   caml_install_invalid_parameter_handler();
 #endif
   caml_init_custom_operations();
+  caml_top_of_stack = &tos;
 #ifdef DEBUG
-  caml_verb_gc = 63;
+  caml_verb_gc = 0x3F;
 #endif
   caml_system_top_of_stack = &tos;
   /* Ceil 16-byte align caml_system_top_of_stack */
   caml_system_top_of_stack =
     (char*)((((uintnat)caml_system_top_of_stack + 16) >> 4) << 4);
   caml_parse_ocamlrunparam();
+#ifdef DEBUG
+  caml_gc_message (-1, "### OCaml runtime: debug mode ###\n", 0);
+#endif
   caml_init_gc (caml_init_minor_heap_wsz, caml_init_heap_wsz,
                 caml_init_heap_chunk_sz, caml_init_percent_free,
-                caml_init_max_percent_free);
+                caml_init_max_percent_free, caml_init_major_window);
   init_static();
   caml_init_signals();
+  caml_init_backtrace();
   caml_debugger_init (); /* force debugger.o stub to be linked */
   exe_name = argv[0];
   if (exe_name == NULL) exe_name = "";
