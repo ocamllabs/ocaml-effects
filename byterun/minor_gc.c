@@ -166,7 +166,7 @@ void caml_set_minor_heap_size (asize_t bsz)
   caml_young_alloc_mid = caml_young_alloc_start + Wsize_bsize (bsz) / 2;
   caml_young_alloc_end = caml_young_end;
   caml_young_trigger = caml_young_alloc_start;
-  caml_young_limit = caml_young_trigger;
+  caml_young_limit = caml_young_trigger + Max_young_whsize;
   caml_young_ptr = caml_young_alloc_end;
   caml_minor_heap_wsz = Wsize_bsize (bsz);
 
@@ -454,7 +454,7 @@ CAMLexport void caml_gc_dispatch (void)
     /* The minor heap is half-full, do a major GC slice. */
     caml_requested_major_slice = 0;
     caml_young_trigger = caml_young_alloc_start;
-    caml_young_limit = caml_young_trigger;
+    caml_young_limit = caml_young_trigger + Max_young_whsize;
     caml_major_collection_slice (-1);
     CAML_INSTR_TIME (tmr, "dispatch/major");
   }

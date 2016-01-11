@@ -276,8 +276,11 @@ static void mark_slice (intnat work)
                Color_hd(hd) == Caml_black));
       size = Wosize_hd (hd);
       end = start + work;
-      if (Color_hd(hd) != Caml_black) {
-        if (Tag_hd (hd) == Stack_tag) {
+      if (Color_hd(hd) == Caml_black) {
+        Assert (Tag_hd (hd) == Stack_tag);
+        start = 0;
+        v = 0;
+      } else if (Tag_hd (hd) == Stack_tag) {
           /* Disregard work and scan stacks fully; stack scanning cannot be
            * interrupted. */
           caml_scan_stack (mark_child, v);
@@ -285,34 +288,33 @@ static void mark_slice (intnat work)
           work -= Whsize_wosize(size);
           start = 0;
           v = 0;
-        } else if (Tag_hd (hd) < No_scan_tag) {
-            start = size < start ? size : start;
-            end = size < end ? size : end;
-            CAMLassert (end > start);
-            INSTR (slice_fields += end - start;)
-            INSTR (if (size > end)
-                     CAML_INSTR_INT ("major/mark/slice/remain", size - end);)
-            for (i = start; i < end; i++)
-              mark_child (Field(v,i), &Field(v,i));
-            if (end < size){
-              work = 0;
-              start = end;
-              /* [v] doesn't change. */
-              CAMLassert (Is_gray_val (v));
-            } else {
-              CAMLassert (end == size);
-              Hd_val (v) = Blackhd_hd (hd);
-              work -= Whsize_wosize(end - start);
-              start = 0;
-              v = 0;
-            }
-        } else {
-          /* The block doesn't contain any pointers. */
-          CAMLassert (start == 0);
-          Hd_val (v) = Blackhd_hd (hd);
-          work -= Whsize_wosize(size);
-          v = 0;
-        }
+      } else if (Tag_hd (hd) < No_scan_tag) {
+          start = size < start ? size : start;
+          end = size < end ? size : end;
+          CAMLassert (end > start);
+          INSTR (slice_fields += end - start;)
+          INSTR (if (size > end)
+                   CAML_INSTR_INT ("major/mark/slice/remain", size - end);)
+          for (i = start; i < end; i++)
+            mark_child (Field(v,i), &Field(v,i));
+          if (end < size){
+            work = 0;
+            start = end;
+            /* [v] doesn't change. */
+            CAMLassert (Is_gray_val (v));
+          } else {
+            CAMLassert (end == size);
+            Hd_val (v) = Blackhd_hd (hd);
+            work -= Whsize_wosize(end - start);
+            start = 0;
+            v = 0;
+          }
+      } else {
+        /* The block doesn't contain any pointers. */
+        CAMLassert (start == 0);
+        Hd_val (v) = Blackhd_hd (hd);
+        work -= Whsize_wosize(size);
+        v = 0;
       }
     } else if (markhp != NULL) {
       if (markhp == limit) {
@@ -694,7 +696,9 @@ void caml_major_collection_slice (intnat howmuch)
   }
 
   if (caml_gc_phase == Phase_idle){
+    caml_restore_stack_gc();
     caml_compact_heap_maybe ();
+    caml_save_stack_gc(0);
     CAML_INSTR_TIME (tmr, "major/check_and_compact");
   }
 
