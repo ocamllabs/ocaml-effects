@@ -44,8 +44,9 @@ and strengthen_sig env sg p pos =
   match sg with
     [] -> []
   | (Sig_value(id, desc) as sigelt) :: rem ->
-      let nextpos = match desc.val_kind with Val_prim _ -> pos | _ -> pos+1 in
-      sigelt :: strengthen_sig env rem p nextpos
+      let pos =
+        match desc with {val_kind = Val_prim _} -> pos | _ -> pos+1 in
+      sigelt :: strengthen_sig env rem p pos
   | Sig_type(id, decl, rs) :: rem ->
       let newdecl =
         match decl.type_manifest, decl.type_private, decl.type_kind with
