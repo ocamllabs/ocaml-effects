@@ -42,7 +42,7 @@ let maybe_pointer_type env typ =
         match Env.find_type p env with
         | {type_kind = Type_variant []} -> true (* type exn *)
         | {type_kind = Type_variant cstrs} ->
-            List.exists (fun c -> c.Types.cd_args <> Cstr_tuple []) cstrs
+            List.exists (fun c -> c.Types.cd_args <> []) cstrs
         | _ -> true
       with Not_found -> true
         (* This can happen due to e.g. missing -I options,
@@ -74,7 +74,7 @@ let array_element_kind env ty =
             {type_kind = Type_abstract} ->
               Pgenarray
           | {type_kind = Type_variant cstrs}
-            when List.for_all (fun c -> c.Types.cd_args = Cstr_tuple [])
+            when List.for_all (fun c -> c.Types.cd_args = [])
                 cstrs ->
               Pintarray
           | {type_kind = _} ->

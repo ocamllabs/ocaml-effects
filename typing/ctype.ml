@@ -529,10 +529,7 @@ let closed_type_decl decl =
           (fun {cd_args; cd_res; _} ->
             match cd_res with
             | Some _ -> ()
-            | None ->
-                match cd_args with
-                | Cstr_tuple l ->  List.iter closed_type l
-                | Cstr_record l -> List.iter (fun l -> closed_type l.ld_type) l
+            | None -> List.iter closed_type cd_args
           )
           v
     | Type_record(r, rep) ->
@@ -554,7 +551,7 @@ let closed_extension_constructor ext =
     List.iter mark_type ext.ext_type_params;
     begin match ext.ext_ret_type with
     | Some _ -> ()
-    | None -> iter_type_expr_cstr_args closed_type ext.ext_args
+    | None -> List.iter closed_type ext.ext_args
     end;
     unmark_extension_constructor ext;
     None
@@ -1177,7 +1174,7 @@ let map_kind f = function
         List.map
           (fun c ->
              {c with
-              cd_args = map_type_expr_cstr_args f c.cd_args;
+              cd_args = List.map f c.cd_args;
               cd_res = may_map f c.cd_res
              })
           cl)
@@ -2166,13 +2163,8 @@ and mcomp_variant_description type_pairs env xs ys =
     match x, y with
     | c1 :: xs, c2 :: ys   ->
       mcomp_type_option type_pairs env c1.cd_res c2.cd_res;
-      begin match c1.cd_args, c2.cd_args with
-      | Cstr_tuple l1, Cstr_tuple l2 -> mcomp_list type_pairs env l1 l2
-      | Cstr_record l1, Cstr_record l2 ->
-          mcomp_record_description type_pairs env l1 l2
-      | _ -> raise (Unify [])
-      end;
-     if Ident.name c1.cd_id = Ident.name c2.cd_id
+      mcomp_list type_pairs env c1.cd_args c2.cd_args;
+      if Ident.name c1.cd_id = Ident.name c2.cd_id
       then iter xs ys
       else raise (Unify [])
     | [],[] -> ()
@@ -4426,7 +4418,7 @@ let nondep_extension_constructor env mid ext =
         in
           ext.ext_type_path, type_params
     in
-    let args = map_type_expr_cstr_args (nondep_type_rec env mid) ext.ext_args in
+    let args = List.map (nondep_type_rec env mid) ext.ext_args in
     let ret_type = may_map (nondep_type_rec env mid) ext.ext_ret_type in
       clear_hash ();
       { ext_type_path = type_path;

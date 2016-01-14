@@ -1326,27 +1326,23 @@ class printer  ()= object(self:'self)
   method constructor_declaration f (name, args, res, attrs) =
     match res with
     | None ->
-        pp f "%s%a@;%a" name
-          (fun f -> function
-             | Pcstr_tuple [] -> ()
-             | Pcstr_tuple l ->
-                 pp f "@;of@;%a" (self#list self#core_type1 ~sep:"*@;") l
-             | Pcstr_record l -> pp f "@;of@;%a" (self#record_declaration) l
-          ) args
+        pp f "%s%a%a" name
           self#attributes attrs
-    | Some r ->
-        pp f "%s:@;%a@;%a" name
           (fun f -> function
-             | Pcstr_tuple [] -> self#core_type1 f r
-             | Pcstr_tuple l -> pp f "%a@;->@;%a"
+             | [] -> ()
+             | l ->
+                 pp f "@;of@;%a" (self#list self#core_type1 ~sep:"*@;") l
+          ) args
+    | Some r ->
+        pp f "%s%a:@;%a" name
+          self#attributes attrs
+          (fun f -> function
+             | [] -> self#core_type1 f r
+             | l -> pp f "%a@;->@;%a"
                                   (self#list self#core_type1 ~sep:"*@;") l
                                   self#core_type1 r
-             | Pcstr_record l ->
-                 pp f "%a@;->@;%a" (self#record_declaration) l self#core_type1 r
           )
           args
-          self#attributes attrs
-
 
   method extension_constructor f x =
     match x.pext_kind with

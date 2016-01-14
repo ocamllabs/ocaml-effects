@@ -162,7 +162,7 @@ module Type:
       type_declaration
 
     val constructor: ?loc:loc -> ?attrs:attrs -> ?info:info ->
-      ?args:constructor_arguments -> ?res:core_type -> str -> constructor_declaration
+      ?args:core_type list -> ?res:core_type -> str -> constructor_declaration
     val field: ?loc:loc -> ?attrs:attrs -> ?info:info ->
       ?mut:mutable_flag -> str -> core_type -> label_declaration
   end
@@ -178,12 +178,12 @@ module Te:
       str -> extension_constructor_kind -> extension_constructor
 
     val decl: ?loc:loc -> ?attrs:attrs -> ?docs:docs -> ?info:info ->
-      ?args:constructor_arguments -> ?res:core_type -> str -> extension_constructor
+      ?args:core_type list -> ?res:core_type -> str -> extension_constructor
     val rebind: ?loc:loc -> ?attrs:attrs -> ?docs:docs -> ?info:info ->
       str -> lid -> extension_constructor
 
     val effect_constructor: ?loc:loc -> ?attrs:attrs -> str -> effect_constructor_kind -> effect_constructor
-    val effect_decl: ?loc:loc -> ?attrs:attrs -> ?args:constructor_arguments -> str -> core_type -> effect_constructor
+    val effect_decl: ?loc:loc -> ?attrs:attrs -> ?args:core_type list -> str -> core_type -> effect_constructor
     val effect_rebind: ?loc:loc -> ?attrs:attrs -> str -> lid -> effect_constructor
 
   end

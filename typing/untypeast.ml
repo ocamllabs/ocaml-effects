@@ -209,9 +209,7 @@ let type_kind sub tk = match tk with
       Ptype_record (List.map (sub.label_declaration sub) list)
   | Ttype_open -> Ptype_open
 
-let constructor_arguments sub = function
-   | Cstr_tuple l -> Pcstr_tuple (List.map (sub.typ sub) l)
-   | Cstr_record l -> Pcstr_record (List.map (sub.label_declaration sub) l)
+let constructor_arguments sub l = List.map (sub.typ sub) l
 
 let constructor_declaration sub cd =
   let loc = sub.location sub cd.cd_loc; in

@@ -135,12 +135,8 @@ let label_decl sub x =
   let ld_type = sub.typ sub x.ld_type in
   {x with ld_type}
 
-let constructor_args sub = function
-  | Cstr_tuple l -> Cstr_tuple (List.map (sub.typ sub) l)
-  | Cstr_record l -> Cstr_record (List.map (label_decl sub) l)
-
 let constructor_decl sub cd =
-  let cd_args = constructor_args sub cd.cd_args in
+  let cd_args = List.map (sub.typ sub) cd.cd_args in
   let cd_res = opt (sub.typ sub) cd.cd_res in
   {cd with cd_args; cd_res}
 
@@ -175,7 +171,7 @@ let extension_constructor sub x =
   let ext_kind =
     match x.ext_kind with
       Text_decl(ctl, cto) ->
-        Text_decl(constructor_args sub ctl, opt (sub.typ sub) cto)
+        Text_decl(List.map (sub.typ sub) ctl, opt (sub.typ sub) cto)
     | Text_rebind _ as d -> d
   in
   {x with ext_kind}

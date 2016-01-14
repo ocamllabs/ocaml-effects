@@ -406,7 +406,7 @@ module Type = struct
     }
 
   let constructor ?(loc = !default_loc) ?(attrs = []) ?(info = empty_info)
-        ?(args = Pcstr_tuple []) ?res name =
+        ?(args = []) ?res name =
     {
      pcd_name = name;
      pcd_args = args;
@@ -449,7 +449,7 @@ module Te = struct
     }
 
   let decl ?(loc = !default_loc) ?(attrs = []) ?(docs = empty_docs)
-             ?(info = empty_info) ?(args = Pcstr_tuple []) ?res name =
+             ?(info = empty_info) ?(args = []) ?res name =
     {
      pext_name = name;
      pext_kind = Pext_decl(args, res);
@@ -474,7 +474,7 @@ module Te = struct
      peff_attributes = attrs;
     }
 
-  let effect_decl ?(loc = !default_loc) ?(attrs = []) ?(args = Pcstr_tuple []) name res =
+  let effect_decl ?(loc = !default_loc) ?(attrs = []) ?(args = []) name res =
     {
      peff_name = name;
      peff_kind = Peff_decl(args, res);

@@ -115,7 +115,7 @@ let decl_abstr =
 let cstr id args =
   {
     cd_id = id;
-    cd_args = Cstr_tuple args;
+    cd_args = args;
     cd_res = None;
     cd_loc = Location.none;
     cd_attributes = [];
@@ -185,7 +185,7 @@ let common_initial_env add_type add_extension empty_env =
     add_extension id
       { ext_type_path = path_exn;
         ext_type_params = [];
-        ext_args = Cstr_tuple l;
+        ext_args = l;
         ext_ret_type = None;
         ext_private = Asttypes.Public;
         ext_loc = Location.none;

@@ -64,9 +64,7 @@ let add_opt add_fn bv = function
     None -> ()
   | Some x -> add_fn bv x
 
-let add_constructor_arguments bv = function
-  | Pcstr_tuple l -> List.iter (add_type bv) l
-  | Pcstr_record l -> List.iter (fun l -> add_type bv l.pld_type) l
+let add_constructor_arguments bv l = List.iter (add_type bv) l
 
 let add_constructor_decl bv pcd =
   add_constructor_arguments bv pcd.pcd_args;

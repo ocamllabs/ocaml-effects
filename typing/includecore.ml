@@ -157,19 +157,7 @@ let report_type_mismatch first second decl ppf =
       if err = Manifest then () else
       Format.fprintf ppf "@ %a." (report_type_mismatch0 first second decl) err)
 
-let rec compare_constructor_arguments env cstr params1 params2 arg1 arg2 =
-  match arg1, arg2 with
-  | Types.Cstr_tuple arg1, Types.Cstr_tuple arg2 ->
-      if List.length arg1 <> List.length arg2 then [Field_arity cstr]
-      else if Misc.for_all2
-          (fun ty1 ty2 -> Ctype.equal env true (ty1::params1) (ty2::params2))
-          (arg1) (arg2)
-      then [] else [Field_type cstr]
-  | Types.Cstr_record l1, Types.Cstr_record l2 ->
-      compare_records env params1 params2 0 l1 l2
-  | _ -> [Field_type cstr]
-
-and compare_variants env params1 params2 n cstrs1 cstrs2 =
+let rec compare_variants env params1 params2 n cstrs1 cstrs2 =
   match cstrs1, cstrs2 with
     [], []           -> []
   | [], c::_ -> [Field_missing (true, c.Types.cd_id)]
@@ -184,13 +172,13 @@ and compare_variants env params1 params2 n cstrs1 cstrs2 =
       | Some _, None | None, Some _ ->
           [Field_type cstr1]
       | _ ->
-          let r =
-            compare_constructor_arguments env cstr1
-              params1 params2 arg1 arg2
-          in
-          if r <> [] then r
-          else compare_variants env params1 params2 (n+1) rem1 rem2
-
+          if Misc.for_all2
+              (fun ty1 ty2 ->
+                Ctype.equal env true (ty1::params1) (ty2::params2))
+              (arg1) (arg2)
+          then
+            compare_variants env params1 params2 (n+1) rem1 rem2
+          else [Field_type cstr1]
 
 and compare_records env params1 params2 n labels1 labels2 =
   match labels1, labels2 with
@@ -290,9 +278,7 @@ let extension_constructors env id ext1 ext2 =
        (ty1 :: ext1.ext_type_params)
        (ty2 :: ext2.ext_type_params)
   then
-    if compare_constructor_arguments env (Ident.create "")
-        ext1.ext_type_params ext2.ext_type_params
-        ext1.ext_args ext2.ext_args = [] then
+    if List.length ext1.ext_args = List.length ext2.ext_args then
       if match ext1.ext_ret_type, ext2.ext_ret_type with
           Some r1, Some r2 when not (Ctype.equal env true [r1] [r2]) -> false
         | Some _, None | None, Some _ -> false

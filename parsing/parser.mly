@@ -1863,7 +1863,7 @@ effect_declaration:
   | effect_constructor_rebind           { $1 }
 ;
 effect_constructor_declaration:
-  | EFFECT constr_ident attributes COLON constructor_arguments MINUSGREATER simple_core_type
+  | EFFECT constr_ident attributes COLON core_type_list MINUSGREATER simple_core_type
       post_item_attributes
       { Te.effect_decl (mkrhs $2 1) $7 ~args:$5 ~loc:(symbol_rloc()) ~attrs:($8 @ $3) }
   | EFFECT constr_ident attributes COLON simple_core_type post_item_attributes
@@ -1876,18 +1876,14 @@ effect_constructor_rebind:
           ~loc:(symbol_rloc()) ~attrs:($6 @ $3) }
 ;
 generalized_constructor_arguments:
-    /*empty*/                     { (Pcstr_tuple [],None) }
-  | OF constructor_arguments      { ($2,None) }
-  | COLON constructor_arguments MINUSGREATER simple_core_type
+    /*empty*/                     { ([],None) }
+  | OF core_type_list             { ($2,None) }
+  | COLON core_type_list MINUSGREATER simple_core_type
                                   { ($2,Some $4) }
   | COLON simple_core_type
-                                  { (Pcstr_tuple [],Some $2) }
+                                  { ([],Some $2) }
 ;
 
-constructor_arguments:
-  | core_type_list                   { Pcstr_tuple (List.rev $1) }
-  | LBRACE label_declarations RBRACE { Pcstr_record $2 }
-;
 label_declarations:
     label_declaration                           { [$1] }
   | label_declaration_semi                      { [$1] }

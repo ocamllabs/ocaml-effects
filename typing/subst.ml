@@ -211,11 +211,7 @@ let label_declaration s l =
     ld_attributes = attrs s l.ld_attributes;
   }
 
-let constructor_arguments s = function
-  | Cstr_tuple l ->
-      Cstr_tuple (List.map (typexp s) l)
-  | Cstr_record l ->
-      Cstr_record (List.map (label_declaration s) l)
+let constructor_arguments s l = (List.map (typexp s) l)
 
 let constructor_declaration s c =
   {

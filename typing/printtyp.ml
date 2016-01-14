@@ -753,9 +753,7 @@ let string_of_mutable = function
   | Mutable -> "mutable "
 
 
-let mark_loops_constructor_arguments = function
-  | Cstr_tuple l -> List.iter mark_loops l
-  | Cstr_record l -> List.iter (fun l -> mark_loops l.ld_type) l
+let mark_loops_constructor_arguments l = List.iter mark_loops l
 
 let rec tree_of_type_decl id decl =
 
@@ -868,9 +866,7 @@ let rec tree_of_type_decl id decl =
       otype_private = priv;
       otype_cstrs = constraints }
 
-and tree_of_constructor_arguments = function
-  | Cstr_tuple l -> tree_of_typlist false l
-  | Cstr_record l -> [ Otyp_record (List.map tree_of_label l) ]
+and tree_of_constructor_arguments l = tree_of_typlist false l
 
 and tree_of_constructor cd =
   let name = Ident.name cd.cd_id in

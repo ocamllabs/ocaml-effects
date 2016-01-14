@@ -433,7 +433,7 @@ and extension_constructor_kind i ppf x =
   match x with
       Text_decl(a, r) ->
         line i ppf "Text_decl\n";
-        constructor_arguments (i+1) ppf a;
+        list (i+1) core_type ppf a;
         option (i+1) core_type ppf r;
     | Text_rebind(p, _) ->
         line i ppf "Text_rebind\n";
@@ -787,12 +787,8 @@ and constructor_decl i ppf {cd_id; cd_name = _; cd_args; cd_res; cd_loc; cd_attr
   line i ppf "%a\n" fmt_location cd_loc;
   line (i+1) ppf "%a\n" fmt_ident cd_id;
   attributes i ppf cd_attributes;
-  constructor_arguments (i+1) ppf cd_args;
+  list (i+1) core_type ppf cd_args;
   option (i+1) core_type ppf cd_res
-
-and constructor_arguments i ppf = function
-  | Cstr_tuple l -> list i core_type ppf l
-  | Cstr_record l -> list i label_decl ppf l
 
 and label_decl i ppf {ld_id; ld_name = _; ld_mutable; ld_type; ld_loc; ld_attributes} =
   line i ppf "%a\n" fmt_location ld_loc;
