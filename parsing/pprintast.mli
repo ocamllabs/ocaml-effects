@@ -85,9 +85,7 @@ class printer :
     method payload : Format.formatter -> Parsetree.payload -> unit
     method private_flag : Format.formatter -> Asttypes.private_flag -> unit
     method rec_flag : Format.formatter -> Asttypes.rec_flag -> unit
-    method nonrec_flag : Format.formatter -> Asttypes.rec_flag -> unit
-    method record_declaration :
-        Format.formatter -> Parsetree.label_declaration list -> unit
+    method record_declaration : Format.formatter -> Parsetree.label_declaration list -> unit
 
     method reset : 'b
     method reset_semi : 'b
@@ -111,7 +109,7 @@ class printer :
     method type_declaration :
       Format.formatter -> Parsetree.type_declaration -> unit
     method type_def_list :
-      Format.formatter -> Asttypes.rec_flag * Parsetree.type_declaration list -> unit
+      Format.formatter -> Parsetree.type_declaration list -> unit
     method type_extension :
       Format.formatter -> Parsetree.type_extension -> unit
     method type_param :

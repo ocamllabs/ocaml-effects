@@ -310,6 +310,13 @@ let extra_csig pos items = extra_text Ctf.text pos items
 let extra_def pos items =
   extra_text (fun txt -> [Ptop_def (Str.text txt)]) pos items
 
+let add_nonrec rf attrs pos =
+  match rf with
+  | Recursive -> attrs
+  | Nonrecursive ->
+      let name = { txt = "nonrec"; loc = rhs_loc pos } in
+        (name, PStr []) :: attrs
+
 type let_binding =
   { lb_pattern: pattern;
     lb_expression: expression;
@@ -756,7 +763,7 @@ structure_item:
   | value_description
       { mkstr (Pstr_primitive $1) }
   | type_declarations
-      { let (nr, l) = $1 in mkstr(Pstr_type (nr, List.rev l)) }
+      { mkstr(Pstr_type $1) }
   | str_type_extension
       { mkstr(Pstr_typext $1) }
   | str_exception_declaration
@@ -854,7 +861,7 @@ signature_item:
   | primitive_declaration
       { mksig(Psig_value $1) }
   | type_declarations
-      { let (nr, l) = $1 in mksig(Psig_type (nr, List.rev l)) }
+      { mksig(Psig_type $1) }
   | sig_type_extension
       { mksig(Psig_typext $1) }
   | sig_exception_declaration
@@ -1735,21 +1742,18 @@ primitive_declaration:
 
 type_declarations:
     type_declaration
-      { let (nonrec_flag, ty) = $1 in (nonrec_flag, [ty]) }
+      { let ty = $1 in [ty] }
   | type_declarations and_type_declaration
-      { let (nonrec_flag, tys) = $1 in (nonrec_flag, $2 :: tys) }
+      { let tys = $1 in ($2 :: tys) }
 ;
 
 type_declaration:
     TYPE nonrec_flag optional_type_parameters LIDENT type_kind constraints
     post_item_attributes
       { let (kind, priv, manifest) = $5 in
-        let ty =
           Type.mk (mkrhs $4 4) ~params:$3 ~cstrs:(List.rev $6) ~kind
-            ~priv ?manifest ~attrs:$7
-            ~loc:(symbol_rloc ()) ~docs:(symbol_docs ())
-        in
-          ($2, ty) }
+            ~priv ?manifest ~attrs:(add_nonrec $2 $7 2)
+            ~loc:(symbol_rloc ()) ~docs:(symbol_docs ()) }
 ;
 and_type_declaration:
     AND optional_type_parameters LIDENT type_kind constraints
@@ -2395,7 +2399,6 @@ single_attr_id:
   | MODULE { "module" }
   | MUTABLE { "mutable" }
   | NEW { "new" }
-  | NONREC { "nonrec" }
   | OBJECT { "object" }
   | OF { "of" }
   | OPEN { "open" }
