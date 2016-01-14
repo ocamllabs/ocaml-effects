@@ -112,7 +112,6 @@ type error =
   | Invalid_for_loop_index
   | No_value_clauses
   | Exception_pattern_below_toplevel
-  | Inlined_record_escape
   | Effect_pattern_below_toplevel
   | Invalid_continuation_pattern
 

@@ -32,7 +32,6 @@ val mark_loops: type_expr -> unit
 val reset_and_mark_loops: type_expr -> unit
 val reset_and_mark_loops_list: type_expr list -> unit
 val type_expr: formatter -> type_expr -> unit
-val constructor_arguments: formatter -> type_expr list -> unit
 val tree_of_type_scheme: type_expr -> out_type
 val type_sch : formatter -> type_expr -> unit
 val type_scheme: formatter -> type_expr -> unit
@@ -83,3 +82,4 @@ val report_ambiguous_type_error:
 (* for toploop *)
 val print_items: (Env.t -> signature_item -> 'a option) ->
   Env.t -> signature_item list -> (out_sig_item * 'a option) list
+

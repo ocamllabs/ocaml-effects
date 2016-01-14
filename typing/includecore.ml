@@ -166,6 +166,8 @@ let rec compare_variants env params1 params2 n cstrs1 cstrs2 =
     {Types.cd_id=cstr2; cd_args=arg2; cd_res=ret2}::rem2 ->
       if Ident.name cstr1 <> Ident.name cstr2 then
         [Field_names (n, cstr1, cstr2)]
+      else if List.length arg1 <> List.length arg2 then
+        [Field_arity cstr1]
       else match ret1, ret2 with
       | Some r1, Some r2 when not (Ctype.equal env true [r1] [r2]) ->
           [Field_type cstr1]
@@ -180,7 +182,7 @@ let rec compare_variants env params1 params2 n cstrs1 cstrs2 =
             compare_variants env params1 params2 (n+1) rem1 rem2
           else [Field_type cstr1]
 
-and compare_records env params1 params2 n labels1 labels2 =
+let rec compare_records env params1 params2 n labels1 labels2 =
   match labels1, labels2 with
     [], []           -> []
   | [], l::_ -> [Field_missing (true, l.ld_id)]
@@ -282,7 +284,13 @@ let extension_constructors env id ext1 ext2 =
       if match ext1.ext_ret_type, ext2.ext_ret_type with
           Some r1, Some r2 when not (Ctype.equal env true [r1] [r2]) -> false
         | Some _, None | None, Some _ -> false
-        | _ -> true
+        | _ ->
+            Misc.for_all2
+              (fun ty1 ty2 ->
+                Ctype.equal env true
+                  (ty1 :: ext1.ext_type_params)
+                  (ty2 :: ext2.ext_type_params))
+              ext1.ext_args ext2.ext_args
       then
         match ext1.ext_private, ext2.ext_private with
             Private, Public -> false

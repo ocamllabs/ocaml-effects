@@ -194,8 +194,7 @@ module MakeMap(Map : MapArgument) = struct
   and map_type_parameter (ct, v) = (map_core_type ct, v)
 
   and map_constructor_declaration cd =
-    let cd_args = List.map map_core_type cd.cd_args in
-    {cd with cd_args;
+    {cd with cd_args = List.map map_core_type cd.cd_args;
      cd_res = may_map map_core_type cd.cd_res
     }
 

@@ -87,13 +87,6 @@ let type_path s = function
   | Papply(p1, p2) ->
       fatal_error "Subst.type_path"
 
-let type_path s p =
-  match Path.constructor_typath p with
-  | Regular p -> type_path s p
-  | Cstr (ty_path, cstr) -> Pdot(type_path s ty_path, cstr, nopos)
-  | LocalExt _ -> type_path s p
-  | Ext (p, cstr) -> Pdot(module_path s p, cstr, nopos)
-
 (* Special type ids for saved signatures *)
 
 let new_id = ref (-1)
@@ -211,7 +204,8 @@ let label_declaration s l =
     ld_attributes = attrs s l.ld_attributes;
   }
 
-let constructor_arguments s l = (List.map (typexp s) l)
+let constructor_arguments s args =
+  List.map (typexp s) args
 
 let constructor_declaration s c =
   {

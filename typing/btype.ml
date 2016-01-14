@@ -253,16 +253,12 @@ type type_iterators =
     it_type_expr: type_iterators -> type_expr -> unit;
     it_path: Path.t -> unit; }
 
-let iter_type_expr_cstr_args f tl = List.iter f tl
-
-let map_type_expr_cstr_args f tl = List.map f tl
-
 let iter_type_expr_kind f = function
   | Type_abstract -> ()
   | Type_variant cstrs ->
       List.iter
         (fun cd ->
-           iter_type_expr_cstr_args f cd.cd_args;
+           List.iter f cd.cd_args;
            Misc.may f cd.cd_res
         )
         cstrs
@@ -292,7 +288,7 @@ let type_iterators =
   and it_extension_constructor it td =
     it.it_path td.ext_type_path;
     List.iter (it.it_type_expr it) td.ext_type_params;
-    iter_type_expr_cstr_args (it.it_type_expr it) td.ext_args;
+    List.iter (it.it_type_expr it) td.ext_args;
     may (it.it_type_expr it) td.ext_ret_type
   and it_module_declaration it md =
     it.it_module_type it md.md_type
@@ -475,7 +471,7 @@ let unmark_type_decl decl =
 
 let unmark_extension_constructor ext =
   List.iter unmark_type ext.ext_type_params;
-  iter_type_expr_cstr_args unmark_type ext.ext_args;
+  List.iter unmark_type ext.ext_args;
   Misc.may unmark_type ext.ext_ret_type
 
 let unmark_class_signature sign =

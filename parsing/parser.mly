@@ -1876,13 +1876,15 @@ effect_constructor_rebind:
           ~loc:(symbol_rloc()) ~attrs:($6 @ $3) }
 ;
 generalized_constructor_arguments:
-    /*empty*/                     { ([],None) }
-  | OF core_type_list             { ($2,None) }
+    /*empty*/                                   { ([],None) }
+  | OF core_type_list                           { (List.rev $2,None) }
   | COLON core_type_list MINUSGREATER simple_core_type
-                                  { ($2,Some $4) }
+                                                { (List.rev $2,Some $4) }
   | COLON simple_core_type
-                                  { ([],Some $2) }
+                                                { ([],Some $2) }
 ;
+
+
 
 label_declarations:
     label_declaration                           { [$1] }

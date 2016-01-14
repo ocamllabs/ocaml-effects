@@ -403,14 +403,10 @@ and constructor_declaration =
      pcd_loc: Location.t;
      pcd_attributes: attributes; (* C [@id1] [@id2] of ... *)
     }
-
 (*
-  | C of T1 * ... * Tn     (res = None,    args = Pcstr_tuple [])
-  | C: T0                  (res = Some T0, args = [])
-  | C: T1 * ... * Tn -> T0 (res = Some T0, args = Pcstr_tuple)
-  | C of {...}             (res = None,    args = Pcstr_record)
-  | C: {...} -> T0         (res = Some T0, args = Pcstr_record)
-  | C of {...} as t        (res = None,    args = Pcstr_record)
+  | C of T1 * ... * Tn     (res = None)
+  | C: T0                  (args = [], res = Some T0)
+  | C: T1 * ... * Tn -> T0 (res = Some T0)
 *)
 
 and type_extension =

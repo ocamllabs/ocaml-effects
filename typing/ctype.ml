@@ -453,7 +453,6 @@ let rec filter_row_fields erase = function
                     (*  Check genericity of type schemes  *)
                     (**************************************)
 
-
 exception Non_closed of type_expr * bool
 
 let free_variables = ref []
@@ -529,8 +528,7 @@ let closed_type_decl decl =
           (fun {cd_args; cd_res; _} ->
             match cd_res with
             | Some _ -> ()
-            | None -> List.iter closed_type cd_args
-          )
+            | None -> List.iter closed_type cd_args)
           v
     | Type_record(r, rep) ->
         List.iter (fun l -> closed_type l.ld_type) r
@@ -563,7 +561,7 @@ type closed_class_failure =
     CC_Method of type_expr * bool * string * type_expr
   | CC_Value of type_expr * bool * string * type_expr
 
-exception CCFailure of closed_class_failure
+exception Failure0 of closed_class_failure
 
 let closed_class params sign =
   let ty = object_fields (repr sign.csig_self) in
@@ -579,13 +577,13 @@ let closed_class params sign =
       (fun (lab, kind, ty) ->
         if field_kind_repr kind = Fpresent then
         try closed_type ty with Non_closed (ty0, real) ->
-          raise (CCFailure (CC_Method (ty0, real, lab, ty))))
+          raise (Failure0 (CC_Method (ty0, real, lab, ty))))
       fields;
     mark_type_params (repr sign.csig_self);
     List.iter unmark_type params;
     unmark_class_signature sign;
     None
-  with CCFailure reason ->
+  with Failure0 reason ->
     mark_type_params (repr sign.csig_self);
     List.iter unmark_type params;
     unmark_class_signature sign;
@@ -2164,7 +2162,7 @@ and mcomp_variant_description type_pairs env xs ys =
     | c1 :: xs, c2 :: ys   ->
       mcomp_type_option type_pairs env c1.cd_res c2.cd_res;
       mcomp_list type_pairs env c1.cd_args c2.cd_args;
-      if Ident.name c1.cd_id = Ident.name c2.cd_id
+     if Ident.name c1.cd_id = Ident.name c2.cd_id
       then iter xs ys
       else raise (Unify [])
     | [],[] -> ()

@@ -79,13 +79,11 @@ let constructor_descrs ty_path decl cstrs =
                    describe_constructors (idx_const+1) idx_nonconst rem)
           | _  -> (Cstr_block idx_nonconst,
                    describe_constructors idx_const (idx_nonconst+1) rem) in
-
-        let cstr_name = Ident.name cd_id in
         let existentials, cstr_args =
           constructor_args cd_args cd_res
         in
         let cstr =
-          { cstr_name;
+          { cstr_name = Ident.name cd_id;
             cstr_res = ty_res;
             cstr_existentials = existentials;
             cstr_args;
@@ -98,7 +96,6 @@ let constructor_descrs ty_path decl cstrs =
             cstr_generalized = cd_res <> None;
             cstr_loc = cd_loc;
             cstr_attributes = cd_attributes;
-            cstr_inlined = None;
           } in
         (cd_id, cstr) :: descr_rem in
   describe_constructors 0 0 cstrs
@@ -125,7 +122,6 @@ let extension_descr path_ext ext =
       cstr_generalized = ext.ext_ret_type <> None;
       cstr_loc = ext.ext_loc;
       cstr_attributes = ext.ext_attributes;
-      cstr_inlined = None;
     }
 
 let none = {desc = Ttuple []; level = -1; id = -1}

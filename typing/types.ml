@@ -157,8 +157,6 @@ and type_kind =
 and record_representation =
     Record_regular                      (* All fields are boxed / tagged *)
   | Record_float                        (* All fields are floats *)
-  | Record_inlined of int               (* Inlined record *)
-  | Record_extension                    (* Inlined record under extension *)
 
 and label_declaration =
   {
@@ -288,7 +286,6 @@ type constructor_description =
     cstr_private: private_flag;         (* Read-only constructor? *)
     cstr_loc: Location.t;
     cstr_attributes: Parsetree.attributes;
-    cstr_inlined: type_declaration option;
    }
 
 and constructor_tag =

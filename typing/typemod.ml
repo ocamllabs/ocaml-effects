@@ -459,7 +459,6 @@ type names =
     types: StringSet.t ref;
     modules: StringSet.t ref;
     modtypes: StringSet.t ref;
-    typexts: StringSet.t ref;
   }
 
 let new_names () =
@@ -467,7 +466,6 @@ let new_names () =
     types = ref StringSet.empty;
     modules = ref StringSet.empty;
     modtypes = ref StringSet.empty;
-    typexts = ref StringSet.empty;
   }
 
 
@@ -475,14 +473,11 @@ let check_name check names name = check names name.loc name.txt
 let check_type names loc s = check "type" loc names.types s
 let check_module names loc s = check "module" loc names.modules s
 let check_modtype names loc s = check "module type" loc names.modtypes s
-let check_typext names loc s = check "extension constructor" loc names.typexts s
-
 
 let check_sig_item names loc = function
   | Sig_type(id, _, _) -> check_type names loc (Ident.name id)
   | Sig_module(id, _, _) -> check_module names loc (Ident.name id)
   | Sig_modtype(id, _) -> check_modtype names loc (Ident.name id)
-  | Sig_typext(id, _, _) -> check_typext names loc (Ident.name id)
   | _ -> ()
 
 (* Simplify multiple specifications of a value or an extension in a signature.
@@ -492,17 +487,29 @@ let check_sig_item names loc = function
 
 let simplify_signature sg =
   let rec aux = function
-    | [] -> [], StringSet.empty
+    | [] -> [], StringSet.empty, StringSet.empty
     | (Sig_value(id, descr) as component) :: sg ->
-        let (sg, val_names) as k = aux sg in
+        let (sg, val_names, ext_names) as k = aux sg in
         let name = Ident.name id in
         if StringSet.mem name val_names then k
-        else (component :: sg, StringSet.add name val_names)
+        else (component :: sg, StringSet.add name val_names, ext_names)
+    | (Sig_typext(id, ext, es) as component) :: sg ->
+        let (sg, val_names, ext_names) as k = aux sg in
+        let name = Ident.name id in
+        if StringSet.mem name ext_names then
+          (* #6510 *)
+          match es, sg with
+          | Text_first, Sig_typext(id2, ext2, Text_next) :: rest ->
+              (Sig_typext(id2, ext2, Text_first) :: rest,
+               val_names, ext_names)
+          | _ -> k
+        else
+          (component :: sg, val_names, StringSet.add name ext_names)
     | component :: sg ->
-        let (sg, val_names) = aux sg in
-        (component :: sg, val_names)
+        let (sg, val_names, ext_names) = aux sg in
+        (component :: sg, val_names, ext_names)
   in
-  let (sg, _) = aux sg in
+  let (sg, _, _) = aux sg in
   sg
 
 (* Check and translate a module type expression *)
@@ -578,6 +585,7 @@ let rec transl_modtype env smty =
   | Pmty_extension ext ->
       raise (Error_forward (Typetexp.error_of_extension ext))
 
+
 and transl_signature env sg =
   let names = new_names () in
   let rec transl_sig env sg =
@@ -608,9 +616,6 @@ and transl_signature env sg =
               (fun rs td -> Sig_type(td.typ_id, td.typ_type, rs)) decls rem,
             final_env
         | Psig_typext styext ->
-            List.iter
-              (fun pext -> check_name check_typext names pext.pext_name)
-              styext.ptyext_constructors;
             let (tyext, newenv) =
               Typedecl.transl_type_extension false env item.psig_loc styext
             in
@@ -621,14 +626,12 @@ and transl_signature env sg =
                 Sig_typext(ext.ext_id, ext.ext_type, es)) constructors rem,
               final_env
         | Psig_exception sext ->
-            check_name check_typext names sext.pext_name;
             let (ext, newenv) = Typedecl.transl_exception env sext in
             let (trem, rem, final_env) = transl_sig newenv srem in
             mksig (Tsig_exception ext) env loc :: trem,
             Sig_typext(ext.ext_id, ext.ext_type, Text_exception) :: rem,
             final_env
         | Psig_effect seff ->
-            check_name check_typext names seff.peff_name;
             let (ext, newenv) = Typedecl.transl_effect env seff in
             let (trem, rem, final_env) = transl_sig newenv srem in
             mksig (Tsig_effect ext) env loc :: trem,
@@ -1264,9 +1267,6 @@ and type_structure ?(toplevel = false) funct_body anchor env sstr scope =
           decls [],
         enrich_type_decls anchor decls env newenv
     | Pstr_typext styext ->
-        List.iter
-          (fun pext -> check_name check_typext names pext.pext_name)
-          styext.ptyext_constructors;
         let (tyext, newenv) =
           Typedecl.transl_type_extension true env loc styext
         in
@@ -1276,7 +1276,6 @@ and type_structure ?(toplevel = false) funct_body anchor env sstr scope =
            tyext.tyext_constructors [],
          newenv)
     | Pstr_exception sext ->
-        check_name check_typext names sext.pext_name;
         let (ext, newenv) = Typedecl.transl_exception env sext in
         Tstr_exception ext,
         [Sig_typext(ext.ext_id, ext.ext_type, Text_exception)],
