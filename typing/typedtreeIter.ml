@@ -23,6 +23,7 @@ module type IteratorArgument = sig
 
     val enter_structure : structure -> unit
     val enter_value_description : value_description -> unit
+    val enter_type_declaration : type_declaration -> unit
     val enter_type_extension : type_extension -> unit
     val enter_extension_constructor : extension_constructor -> unit
     val enter_pattern : pattern -> unit
@@ -49,6 +50,7 @@ module type IteratorArgument = sig
 
     val leave_structure : structure -> unit
     val leave_value_description : value_description -> unit
+    val leave_type_declaration : type_declaration -> unit
     val leave_type_extension : type_extension -> unit
     val leave_extension_constructor : extension_constructor -> unit
     val leave_pattern : pattern -> unit
@@ -76,11 +78,6 @@ module type IteratorArgument = sig
     val enter_binding : value_binding -> unit
     val leave_binding : value_binding -> unit
     val leave_bindings : rec_flag -> unit
-
-    val enter_type_declarations : rec_flag -> unit
-    val enter_type_declaration : type_declaration -> unit
-    val leave_type_declaration : type_declaration -> unit
-    val leave_type_declarations : rec_flag -> unit
 
       end
 
@@ -136,7 +133,7 @@ module MakeIterator(Iter : IteratorArgument) : sig
         | Tstr_value (rec_flag, list) ->
             iter_bindings rec_flag list
         | Tstr_primitive vd -> iter_value_description vd
-        | Tstr_type (rf, list) -> iter_type_declarations rf list
+        | Tstr_type list -> List.iter iter_type_declaration list
         | Tstr_typext tyext -> iter_type_extension tyext
         | Tstr_exception ext -> iter_extension_constructor ext
         | Tstr_effect ext -> iter_extension_constructor ext
@@ -191,11 +188,6 @@ module MakeIterator(Iter : IteratorArgument) : sig
       end;
       option iter_core_type decl.typ_manifest;
       Iter.leave_type_declaration decl
-
-    and iter_type_declarations rec_flag decls =
-      Iter.enter_type_declarations rec_flag;
-      List.iter iter_type_declaration decls;
-      Iter.leave_type_declarations rec_flag
 
     and iter_extension_constructor ext =
       Iter.enter_extension_constructor ext;
@@ -363,8 +355,8 @@ module MakeIterator(Iter : IteratorArgument) : sig
         match item.sig_desc with
           Tsig_value vd ->
             iter_value_description vd
-        | Tsig_type (rf, list) ->
-            iter_type_declarations rf list
+        | Tsig_type list ->
+            List.iter iter_type_declaration list
         | Tsig_exception ext ->
             iter_extension_constructor ext
         | Tsig_effect ext ->
@@ -603,6 +595,7 @@ module DefaultIteratorArgument = struct
 
       let enter_structure _ = ()
       let enter_value_description _ = ()
+      let enter_type_declaration _ = ()
       let enter_type_extension _ = ()
       let enter_extension_constructor _ = ()
       let enter_pattern _ = ()
@@ -630,6 +623,7 @@ module DefaultIteratorArgument = struct
 
       let leave_structure _ = ()
       let leave_value_description _ = ()
+      let leave_type_declaration _ = ()
       let leave_type_extension _ = ()
       let leave_extension_constructor _ = ()
       let leave_pattern _ = ()
@@ -660,9 +654,4 @@ module DefaultIteratorArgument = struct
     let enter_bindings _ = ()
     let leave_bindings _ = ()
 
-    let enter_type_declaration _ = ()
-    let leave_type_declaration _ = ()
-
-    let enter_type_declarations _ = ()
-    let leave_type_declarations _ = ()
-end
+  end

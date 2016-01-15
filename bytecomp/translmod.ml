@@ -420,7 +420,7 @@ and transl_structure fields cc rootpath = function
   | Tstr_primitive descr ->
       record_primitive descr.val_val;
       transl_structure fields cc rootpath rem
-  | Tstr_type(_, decls) ->
+  | Tstr_type decls ->
       transl_structure fields cc rootpath rem
   | Tstr_typext(tyext) ->
       let ids = List.map (fun ext -> ext.ext_id) tyext.tyext_constructors in
@@ -505,7 +505,7 @@ let rec defined_idents = function
     | Tstr_value(rec_flag, pat_expr_list) ->
       let_bound_idents pat_expr_list @ defined_idents rem
     | Tstr_primitive desc -> defined_idents rem
-    | Tstr_type (_, decls) -> defined_idents rem
+    | Tstr_type decls -> defined_idents rem
     | Tstr_typext tyext ->
       List.map (fun ext -> ext.ext_id) tyext.tyext_constructors
       @ defined_idents rem
@@ -532,7 +532,7 @@ let rec more_idents = function
     | Tstr_eval (expr, _attrs) -> more_idents rem
     | Tstr_value(rec_flag, pat_expr_list) -> more_idents rem
     | Tstr_primitive _ -> more_idents rem
-    | Tstr_type (_, decls) -> more_idents rem
+    | Tstr_type decls -> more_idents rem
     | Tstr_typext tyext -> more_idents rem
     | Tstr_exception _ -> more_idents rem
     | Tstr_effect _ -> more_idents rem
@@ -555,7 +555,7 @@ and all_idents = function
     | Tstr_value(rec_flag, pat_expr_list) ->
       let_bound_idents pat_expr_list @ all_idents rem
     | Tstr_primitive _ -> all_idents rem
-    | Tstr_type (_, decls) -> all_idents rem
+    | Tstr_type decls -> all_idents rem
     | Tstr_typext tyext ->
       List.map (fun ext -> ext.ext_id) tyext.tyext_constructors
       @ all_idents rem
@@ -620,7 +620,7 @@ let transl_store_structure glob map prims str =
   | Tstr_primitive descr ->
       record_primitive descr.val_val;
       transl_store rootpath subst rem
-  | Tstr_type(_, decls) ->
+  | Tstr_type decls ->
       transl_store rootpath subst rem
   | Tstr_typext(tyext) ->
       let ids = List.map (fun ext -> ext.ext_id) tyext.tyext_constructors in
