@@ -238,6 +238,15 @@ let addressing addr typ i n =
   | Iindexed2scaled(scale, d) ->
       mem64 typ ~scale ~base:(arg64 i n) d (arg64 i (n+1))
 
+let pause n =
+  let lbl = new_label () in
+	I.mov (int n) r10;
+	def_label lbl;
+	I.pause ();
+	I.dec r10;
+	I.cmp (int 0) r10;
+	I.jne (label lbl)
+
 (* Record live pointers at call points -- see Emitaux *)
 
 let record_frame_label live dbg =

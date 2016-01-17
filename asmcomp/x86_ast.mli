@@ -164,6 +164,7 @@ type instruction =
   | NEG of arg
   | NOP
   | OR of arg * arg
+  | PAUSE
   | POP of arg
   | PUSH of arg
   | RET

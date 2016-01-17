@@ -172,6 +172,7 @@ module I : sig
   val mulsd: arg -> arg -> unit
   val nop: unit -> unit
   val or_: arg -> arg -> unit
+  val pause : unit -> unit
   val pop: arg -> unit
   val push: arg -> unit
   val ret: unit -> unit

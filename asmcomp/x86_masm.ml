@@ -191,6 +191,7 @@ let print_instr b = function
   | NEG arg -> i1 b "neg" arg
   | NOP -> i0 b "nop"
   | OR (arg1, arg2) -> i2 b "or" arg1 arg2
+  | PAUSE -> i0 b "pause"
   | POP arg -> i1 b "pop" arg
   | PUSH arg -> i1 b "push" arg
   | RET -> i0 b "ret"

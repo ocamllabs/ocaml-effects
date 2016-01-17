@@ -179,6 +179,7 @@ module I = struct
   let mulsd x y = emit (MULSD (x, y))
   let nop () = emit NOP
   let or_ x y = emit (OR (x, y))
+  let pause () = emit PAUSE
   let pop x = emit (POP x)
   let push x = emit (PUSH x)
   let ret () = emit RET
