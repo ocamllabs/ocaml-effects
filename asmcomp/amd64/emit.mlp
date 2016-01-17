@@ -893,7 +893,7 @@ let fundecl fundecl =
   (* Extra 1k bytes slop space if profiling is enabled. Ensures that `mcount`
    * and signal handlers do not stack overflow. *)
   let s = if !Clflags.gprofile then s + 1024 else s in
-  I.mov (mem64 QWORD s R14) r11;
+  I.lea (mem64 QWORD s R14) r11;
   I.cmp r11 rsp;
   I.jb (label handle_overflow);
   def_label !tailrec_entry_point;
