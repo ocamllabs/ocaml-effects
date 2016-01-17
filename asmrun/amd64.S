@@ -163,18 +163,18 @@
 #endif
 
 /* Store [caml_top_of_stack - %rsp] into caml_exception_ptr_offset. Clobbers
- * %r9 & %r11. */
+ * %r10 & %r11. */
 #define SAVE_EXN_HANDLER \
-        LOAD_VAR(caml_top_of_stack, %r9); \
-        sub     %rsp, %r9; \
-        STORE_VAR(%r9, caml_exception_ptr_offset)
+        LOAD_VAR(caml_top_of_stack, %r10); \
+        sub     %rsp, %r10; \
+        STORE_VAR(%r10, caml_exception_ptr_offset)
 
-/* Store [caml_top_of_stack - caml_exception_ptr_offset] into %rsp. Clobbers
- * %r9 & %r11. */
+/* Store [caml_top_of_stack - caml_exception_ptr_offset] into %rsp. Clobbers 
+ * %r10 & %r11. */
 #define RESTORE_EXN_HANDLER \
         LOAD_VAR(caml_top_of_stack, %rsp); \
-        LOAD_VAR(caml_exception_ptr_offset, %r9); \
-        sub     %r9, %rsp; \
+        LOAD_VAR(caml_exception_ptr_offset, %r10); \
+        sub     %r10, %rsp; \
         POP_VAR(caml_exception_ptr_offset)
 
 
