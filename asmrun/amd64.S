@@ -162,17 +162,20 @@
 
 #endif
 
-/* Store [caml_top_of_stack - %rsp] into %r14. %r14 is an offset. Clobbers
- * %r11. */
+/* Store [caml_top_of_stack - %rsp] into caml_exception_ptr_offset. Clobbers
+ * %r9 & %r11. */
 #define SAVE_EXN_HANDLER \
-        LOAD_VAR(caml_top_of_stack, %r14); \
-        sub     %rsp, %r14
+        LOAD_VAR(caml_top_of_stack, %r9); \
+        sub     %rsp, %r9; \
+        STORE_VAR(%r9, caml_exception_ptr_offset)
 
-/* Load [caml_top_of_stack - %r14] into %rsp. %r14 is an offset. Clobbers %r11. */
+/* Store [caml_top_of_stack - caml_exception_ptr_offset] into %rsp. Clobbers
+ * %r9 & %r11. */
 #define RESTORE_EXN_HANDLER \
         LOAD_VAR(caml_top_of_stack, %rsp); \
-        sub     %r14, %rsp; \
-        popq    %r14
+        LOAD_VAR(caml_exception_ptr_offset, %r9); \
+        sub     %r9, %rsp; \
+        POP_VAR(caml_exception_ptr_offset)
 
 
 /* Switch from OCaml to C stack. Clobbers REG. TODO non-pic. */
@@ -182,7 +185,7 @@
         pushq   $0 ; CFI_ADJUST(8); \
         movq    GREL(caml_gc_regs_slot)(%rip), REG; \
         movq    %rsp, (REG); \
-        pushq   %r14; CFI_ADJUST(8); \
+        PUSH_VAR(caml_exception_ptr_offset); CFI_ADJUST(8); \
     /* Save OCaml SP in the stack slot */ \
         movq    GREL(caml_top_of_stack)(%rip), REG; \
         movq    (REG), REG; \
@@ -220,13 +223,14 @@
         addq    $176, %r11; \
         movq    GREL(caml_stack_threshold)(%rip), %r9; \
         movq    %r11, (%r9); \
+        movq    %r11, %r14; \
     /* Restore %r9 and %r11 */ \
         popq    %r11; CFI_ADJUST(-8); \
         popq    %r9; CFI_ADJUST(-8); \
     /* Switch to OCaml stack */ \
         movq    REG, %rsp; \
-    /* Pop the caml_context from the bottom of stack updating %r14 */ \
-        popq    %r14; CFI_ADJUST(-8); \
+    /* Pop the caml_context from the bottom of stack updating caml_exception_ptr_offset */ \
+        POP_VAR(caml_exception_ptr_offset); CFI_ADJUST(-8); \
         popq    REG; CFI_ADJUST(-8); \
         popq    REG; CFI_ADJUST(-8)
 
@@ -353,9 +357,8 @@ G(caml_system__code_begin):
     /* Update in OCaml stack's context, the pointer to gc_regs */              \
         LOAD_VAR(caml_gc_regs_slot, %r11);                                     \
         movq    %rsp, (%r11);                                                  \
-    /* Save caml_young_ptr, caml_exception_ptr_offset */                       \
+    /* Save caml_young_ptr */                                                  \
         STORE_VAR(%r15, caml_young_ptr);                                       \
-        STORE_VAR(%r14, caml_exception_ptr_offset);                            \
     /* Save floating-point registers */                                        \
         subq    $(16*8), %rsp; CFI_ADJUST (16*8);                              \
         movsd   %xmm0, 0*8(%rsp);                                              \
@@ -378,9 +381,8 @@ G(caml_system__code_begin):
         PREPARE_FOR_C_CALL;                                                    \
         call    GCALL(TARGET_FUN);                                             \
         CLEANUP_AFTER_C_CALL;                                                  \
-    /* Restore caml_young_ptr, caml_exception_ptr_offset */                    \
+    /* Restore caml_young_ptr */                                               \
         LOAD_VAR(caml_young_ptr, %r15);                                        \
-        LOAD_VAR(caml_exception_ptr_offset, %r14);                             \
     /* Restore all regs used by the code generator */                          \
         movsd   0*8(%rsp), %xmm0;                                              \
         movsd   1*8(%rsp), %xmm1;                                              \
@@ -539,11 +541,10 @@ LBL(caml_c_call):
     /* Build an exception handler */
         lea     LBL(106)(%rip), %r10
         push    %r10; CFI_ADJUST(8)
-        push    %r14; CFI_ADJUST(8)
+        PUSH_VAR(caml_exception_ptr_offset); CFI_ADJUST(8)
         SAVE_EXN_HANDLER
-    /* Make the exception handler and alloc ptr available to the C code */
+    /* Make the alloc ptr available to the C code */
         STORE_VAR(%r15, caml_young_ptr)
-        STORE_VAR(%r14, caml_exception_ptr_offset)
     /* Copy arguments from OCaml to C stack */
 LBL(104):
         subq    $8, %r12; CFI_ADJUST(8)
@@ -557,7 +558,7 @@ LBL(105):
         call    *%rax
         CLEANUP_AFTER_C_CALL
     /* Pop the exception handler */
-        popq    %r14; CFI_ADJUST(-8)
+        POP_VAR(caml_exception_ptr_offset); CFI_ADJUST(-8)
         popq    %r12; CFI_ADJUST(-8)   /* dummy register */
     /* Prepare for return to OCaml */
         LOAD_VAR(caml_young_ptr, %r15)
@@ -649,13 +650,13 @@ LBL(caml_start_program):
     /* Build an exception handler */
         lea     LBL(108)(%rip), %r13
         pushq   %r13; CFI_ADJUST(8)
-        pushq   %r14; CFI_ADJUST(8)
+        PUSH_VAR(caml_exception_ptr_offset); CFI_ADJUST(8)
         SAVE_EXN_HANDLER
     /* Call the OCaml code */
         call    *%r12
 LBL(107):
     /* Pop the exception handler */
-        popq    %r14; CFI_ADJUST(-8)
+        POP_VAR(caml_exception_ptr_offset); CFI_ADJUST(-8)
         popq    %r12; CFI_ADJUST(-8)   /* dummy register */
         CFI_ADJUST(-16)
 LBL(109):
@@ -702,7 +703,6 @@ CFI_ENDPROC
 FUNCTION(G(caml_raise_exception))
 CFI_STARTPROC
         movq    C_ARG_1, %rax
-        LOAD_VAR(caml_exception_ptr_offset, %r14)
         RESTORE_EXN_HANDLER            /* Cut stack */
         LOAD_VAR(caml_young_ptr, %r15) /* Reload alloc ptr */
         ret
@@ -710,14 +710,14 @@ CFI_ENDPROC
 
 /* Raise a Stack_overflow exception on return from segv_handler()
    (in asmrun/signals_asm.c).  On entry, the stack is full, so we
-   cannot record a backtrace.
-   No CFI information here since this function disrupts the stack
-   backtrace anyway. */
+   cannot record a backtrace. */
 
 FUNCTION(G(caml_stack_overflow))
+CFI_STARTPROC
         LEA_VAR(caml_exn_Stack_overflow, %rax)
         RESTORE_EXN_HANDLER           /* cut the stack */
         ret                           /* jump to handler's code */
+CFI_ENDPROC
 
 /* Callback from C to OCaml */
 

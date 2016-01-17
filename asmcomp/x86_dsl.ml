@@ -45,6 +45,7 @@ let ah  = Reg8H AH
 let cl  = Reg8L RCX
 let ax  = Reg16 RAX
 let rax = Reg64 RAX
+let r9  = Reg64 R9
 let r10 = Reg64 R10
 let r11 = Reg64 R11
 let r12 = Reg64 R12
