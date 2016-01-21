@@ -132,7 +132,7 @@
 #define LEA_VAR(label,dst) \
         movq    GREL(label)(%rip), dst
 
-/* Switch from OCaml to C stack. Clobbers REG. */
+/* Switch from OCaml to C stack. Clobbers REG & %r14. */
 #define SWITCH_OCAML_TO_C(OFFSET,REG) \
     /* Build caml_context at the bottom of the stack */ \
         pushq   $OFFSET; CFI_ADJUST(8); \
@@ -141,51 +141,29 @@
         movq    %rsp, (REG); \
         pushq   %r14; CFI_ADJUST(8); \
     /* Save OCaml SP in the stack slot */ \
-        movq    GREL(caml_top_of_stack)(%rip), REG; \
-        movq    (REG), REG; \
-        subq    %rsp, REG; \
-        pushq   REG; CFI_ADJUST(8); \
+        movq    GREL(caml_top_of_stack)(%rip), %r14; /* abuse %r14 */ \
+        movq    (%r14), %r14; \
+        subq    %rsp, %r14; \
         movq    GREL(caml_current_stack)(%rip), REG; \
         movq    (REG), REG; \
-        popq    (REG); CFI_ADJUST(-8); \
-    /* Make system top-of-stack current top-of-stack */ \
-        movq    GREL(caml_system_top_of_stack)(%rip), REG; \
-        pushq   (REG); CFI_ADJUST(8); \
-        movq    GREL(caml_top_of_stack)(%rip), REG; \
-        popq    (REG); CFI_ADJUST(-8); \
+        movq    %r14, (REG); \
     /* Switch to system stack */ \
         movq    GREL(caml_system_sp)(%rip), REG; \
         movq    (REG), %rsp
 
-/* Switch from C to OCaml stack. Clobbers REG.
- * Assert (REG != %r11 && REG != %r9). */
+/* Switch from C to OCaml stack.  Clobbers REG. */
 #define SWITCH_C_TO_OCAML(REG) \
-    /* Save %r9 and %r11 */ \
-        pushq   %r9; CFI_ADJUST(8); \
-        pushq   %r11; CFI_ADJUST(8); \
-    /* Save OCaml top of stack in REG */ \
-        movq    GREL(caml_current_stack)(%rip), %r11; \
-        movq    (%r11), %r11; \
-        movq    -8(%r11), REG; \
-        shrq    $10, REG; \
-        leaq    (%r11,REG,8), REG; \
-    /* Set caml_top_of_stack to be OCaml top-of-stack */ \
-        movq    GREL(caml_top_of_stack)(%rip), %r9; \
-        movq    REG, (%r9); \
-    /* Update caml_stack_threshold. 176 = 8 * (Stack_threshold(16) + Stack_ctx_words(6)). */ \
-        subq    (%r11), REG; \
-        addq    $176, %r11; \
-        movq    GREL(caml_stack_threshold)(%rip), %r9; \
-        movq    %r11, (%r9); \
-    /* Restore %r9 and %r11 */ \
-        popq    %r11; CFI_ADJUST(-8); \
-        popq    %r9; CFI_ADJUST(-8); \
     /* Switch to OCaml stack */ \
-        movq    REG, %rsp; \
+        movq    GREL(caml_current_stack)(%rip), REG; \
+        movq    (REG), REG; \
+        movq    GREL(caml_top_of_stack)(%rip), %rsp; \
+        movq    (%rsp), %rsp; \
+        subq    (REG), %rsp; \
     /* Pop the caml_context from the bottom of stack updating %r14 */ \
         popq    %r14; CFI_ADJUST(-8); \
         popq    REG; CFI_ADJUST(-8); \
         popq    REG; CFI_ADJUST(-8)
+
 
 #else
 
@@ -215,7 +193,7 @@
 #define LEA_VAR(label,dst) \
         leaq    G(label)(%rip), dst
 
-/* Switch from OCaml to C stack. Clobbers REG. */
+/* Switch from OCaml to C stack. Clobbers REG & %r14. */
 #define SWITCH_OCAML_TO_C(OFFSET,REG) \
     /* Build caml_context at the bottom of the stack */ \
         pushq   $OFFSET; CFI_ADJUST(8); \
@@ -223,39 +201,19 @@
         movq    %rsp, G(caml_gc_regs_slot)(%rip); \
         pushq   %r14; CFI_ADJUST(8); \
     /* Save OCaml SP in the stack slot */ \
-        movq    G(caml_top_of_stack)(%rip), REG; \
-        subq    %rsp, REG; \
-        pushq   REG; CFI_ADJUST(8); \
+        movq    G(caml_top_of_stack)(%rip), %r14; /* abuse %r14 */ \
+        subq    %rsp, %r14; \
         movq    G(caml_current_stack)(%rip), REG; \
-        popq    (REG); CFI_ADJUST(-8); \
-    /* Make system top-of-stack current top-of-stack */ \
-        movq    GREL(caml_system_top_of_stack)(%rip), REG; \
-        pushq   (REG); CFI_ADJUST(8); \
-        movq    GREL(caml_top_of_stack)(%rip), REG; \
-        popq    (REG); CFI_ADJUST(-8); \
+        movq    %r14, (REG); \
     /* Switch to system stack */ \
         movq    G(caml_system_sp)(%rip), %rsp
 
-/* Switch from C to OCaml stack. Clobbers REG.
- * Assert (REG != %r11). */
+/* Switch from C to OCaml stack. Clobbers REG. */
 #define SWITCH_C_TO_OCAML(REG) \
-    /* Save %r11 */ \
-        pushq   %r11; CFI_ADJUST(8); \
-    /* Save OCaml top of stack in REG */ \
-        movq    G(caml_current_stack)(%rip), %r11; \
-        movq    -8(%r11), REG; \
-        shrq    $10, REG; \
-        leaq    (%r11,REG,8), REG; \
-    /* Set caml_top_of_stack to be OCaml top-of-stack */ \
-        movq    REG, G(caml_top_of_stack)(%rip); \
-    /* Update caml_stack_threshold. 176 = 8 * (Stack_threshold(16) + Stack_ctx_words(6)). */ \
-        subq    (%r11), REG; \
-        addq    $176, %r11; \
-        movq    %r11, G(caml_stack_threshold)(%rip); \
-    /* Restore %r11 */ \
-        popq    %r11; CFI_ADJUST(-8); \
     /* Switch to OCaml stack */ \
-        movq    REG, %rsp; \
+        movq    G(caml_current_stack)(%rip), REG; \
+        movq    G(caml_top_of_stack)(%rip), %rsp; \
+        subq    (REG), %rsp; \
     /* Pop the caml_context from the bottom of stack updating %r14 */ \
         popq    %r14; CFI_ADJUST(-8); \
         popq    REG; CFI_ADJUST(-8); \
@@ -263,18 +221,11 @@
 
 #endif
 
-/* Store [caml_top_of_stack - %rsp] into %r14. %r14 is an offset. Clobbers
- * %r11. */
-#define SAVE_EXN_HANDLER \
-        LOAD_VAR(caml_top_of_stack, %r14); \
-        sub     %rsp, %r14
-
-/* Load [caml_top_of_stack - %r14] into %rsp. %r14 is an offset. Clobbers %r11. */
-#define RESTORE_EXN_HANDLER \
-        LOAD_VAR(caml_top_of_stack, %rsp); \
+/* Load [TOS - %r14] into %rsp. %r14 is an offset. Clobbers %r11. */
+#define RESTORE_EXN_HANDLER(TOS) \
+        LOAD_VAR(TOS, %rsp); \
         sub     %r14, %rsp; \
         popq    %r14
-
 
 /* Switch between OCaml stacks.
  * arguments : target stack (%rdi)
@@ -399,9 +350,8 @@ G(caml_system__code_begin):
     /* Update in OCaml stack's context, the pointer to gc_regs */              \
         LOAD_VAR(caml_gc_regs_slot, %r11);                                     \
         movq    %rsp, (%r11);                                                  \
-    /* Save caml_young_ptr, caml_exception_ptr_offset */                       \
+    /* Save caml_young_ptr */                                                  \
         STORE_VAR(%r15, caml_young_ptr);                                       \
-        STORE_VAR(%r14, caml_exception_ptr_offset);                            \
     /* Save floating-point registers */                                        \
         subq    $(16*8), %rsp; CFI_ADJUST (16*8);                              \
         movsd   %xmm0, 0*8(%rsp);                                              \
@@ -424,9 +374,8 @@ G(caml_system__code_begin):
         PREPARE_FOR_C_CALL;                                                    \
         call    GCALL(TARGET_FUN);                                             \
         CLEANUP_AFTER_C_CALL;                                                  \
-    /* Restore caml_young_ptr, caml_exception_ptr_offset */                    \
+    /* Restore caml_young_ptr */                                               \
         LOAD_VAR(caml_young_ptr, %r15);                                        \
-        LOAD_VAR(caml_exception_ptr_offset, %r14);                             \
     /* Restore all regs used by the code generator */                          \
         movsd   0*8(%rsp), %xmm0;                                              \
         movsd   1*8(%rsp), %xmm1;                                              \
@@ -581,21 +530,12 @@ LBL(caml_c_call):
     /* Switch from OCaml to C */
         SWITCH_OCAML_TO_C(0,%r10)
         ENTER_FUNCTION
-    /* Build an exception handler */
-        lea     LBL(104)(%rip), %r10
-        push    %r10; CFI_ADJUST(8)
-        push    %r14; CFI_ADJUST(8)
-        SAVE_EXN_HANDLER
-    /* Make the exception handler and alloc ptr available to the C code */
+    /* Make the alloc ptr available to the C code */
         STORE_VAR(%r15, caml_young_ptr)
-        STORE_VAR(%r14, caml_exception_ptr_offset)
     /* Call the function (address in %rax) */
         PREPARE_FOR_C_CALL
         call    *%rax
         CLEANUP_AFTER_C_CALL
-    /* Pop the exception handler */
-        popq    %r14; CFI_ADJUST(-8)
-        popq    %r12; CFI_ADJUST(-8)   /* dummy register */
     /* Prepare for return to OCaml */
         LOAD_VAR(caml_young_ptr, %r15)
     /* Load ocaml stack and restore global variables */
@@ -603,15 +543,6 @@ LBL(caml_c_call):
         SWITCH_C_TO_OCAML(%r10)
     /* Return to OCaml caller */
         ret
-LBL(104):
-    /* Exception in C code */
-    /* Prepare for return to OCaml */
-        LOAD_VAR(caml_young_ptr, %r15)
-    /* Load ocaml stack and restore global variables */
-        LEAVE_FUNCTION
-        SWITCH_C_TO_OCAML(%r10)
-    /* Raise the exception in OCaml */
-        jmp LBL(caml_raise_exn)
 CFI_ENDPROC
 
 FUNCTION(G(caml_c_call_stack_args))
@@ -623,14 +554,8 @@ CFI_STARTPROC
     /* Switch from OCaml to C */
         SWITCH_OCAML_TO_C(0,%r10)
         ENTER_FUNCTION
-    /* Build an exception handler */
-        lea     LBL(107)(%rip), %r10
-        push    %r10; CFI_ADJUST(8)
-        push    %r14; CFI_ADJUST(8)
-        SAVE_EXN_HANDLER
-    /* Make the exception handler and alloc ptr available to the C code */
+    /* Make the alloc ptr available to the C code */
         STORE_VAR(%r15, caml_young_ptr)
-        STORE_VAR(%r14, caml_exception_ptr_offset)
     /* Copy arguments from OCaml to C stack */
 LBL(105):
         subq    $8, %r12; CFI_ADJUST(8)
@@ -643,9 +568,6 @@ LBL(106):
         PREPARE_FOR_C_CALL
         call    *%rax
         CLEANUP_AFTER_C_CALL
-    /* Pop the exception handler */
-        popq    %r14; CFI_ADJUST(-8)
-        popq    %r12; CFI_ADJUST(-8)   /* dummy register */
     /* Prepare for return to OCaml */
         LOAD_VAR(caml_young_ptr, %r15)
     /* Load ocaml stack and restore global variables */
@@ -653,15 +575,6 @@ LBL(106):
         SWITCH_C_TO_OCAML(%r10)
     /* Return to OCaml caller */
         ret
-LBL(107):
-    /* Exception in C code */
-    /* Prepare for return to OCaml */
-        LOAD_VAR(caml_young_ptr, %r15)
-    /* Load ocaml stack and restore global variables */
-        LEAVE_FUNCTION
-        SWITCH_C_TO_OCAML(%r10)
-    /* Raise the exception in OCaml */
-        jmp LBL(caml_raise_exn)
 CFI_ENDPROC
 
 /* Registers holding arguments of C functions. */
@@ -697,9 +610,17 @@ LBL(caml_start_program):
      * OCaml to C calls are expected to explicitly align stack using
      * ENTER_FUNCTION and such. */
         subq    $8, %rsp; CFI_ADJUST(8)
-        PUSH_VAR(caml_exception_ptr_offset)
+        PUSH_VAR(caml_system_exnptr_offset)
         PUSH_VAR(caml_system_sp)
+    /* Build a handler for exceptions raised in C */
+        lea     LBL(115)(%rip), %r13
+        pushq   %r13; CFI_ADJUST(8)
+        pushq   $0 ; CFI_ADJUST(8)     /* dummy prev trap */
         STORE_VAR(%rsp, caml_system_sp)
+    /* Load C exception handler */
+        LOAD_VAR(caml_system_top_of_stack, %r14)
+        subq    %rsp, %r14
+        STORE_VAR(%r14, caml_system_exnptr_offset)
     /* Temporarily push caml_current_stack for context switch */
         PUSH_VAR(caml_current_stack)
     /* Save callback args */
@@ -733,15 +654,16 @@ LBL(caml_start_program):
         pushq   %rdx; CFI_ADJUST(8)
     /* Setup alloc ptr */
         LOAD_VAR(caml_young_ptr, %r15)
-    /* Build an exception handler */
+    /* Build a handler for exceptions raised in OCaml */
         lea     LBL(109)(%rip), %r13
         pushq   %r13; CFI_ADJUST(8)
         pushq   %r14; CFI_ADJUST(8)
-        SAVE_EXN_HANDLER
+        LOAD_VAR(caml_top_of_stack, %r14); \
+        sub     %rsp, %r14
     /* Call the OCaml code */
         call    *%r12
 LBL(108):
-    /* Pop the exception handler */
+    /* Pop the OCaml exception handler */
         popq    %r14; CFI_ADJUST(-8)
         popq    %r12; CFI_ADJUST(-8)   /* dummy register */
         CFI_ADJUST(-16)
@@ -752,11 +674,13 @@ LBL(110):
         popq    %r9; CFI_ADJUST(-8)
     /* Return to C stack. */
         SWITCH_OCAML_TO_C(0,%r10)
+    /* Pop the C exception handler */
+        addq    $16, %rsp; CFI_ADJUST(-8)
     /* Restore previous system stack state */
-        STORE_VAR(%r9,caml_current_stack)
         POP_VAR(caml_system_sp)
-        POP_VAR(caml_exception_ptr_offset)
-        addq    $8, %rsp
+        POP_VAR(caml_system_exnptr_offset)
+        STORE_VAR(%r9,caml_current_stack)
+        addq    $8, %rsp; CFI_ADJUST(-8)
     /* Restore callee-save registers. */
         POP_CALLEE_SAVE_REGS
     /* Return to caller. */
@@ -766,6 +690,19 @@ LBL(109):
     /* Mark the bucket as an exception result and return it */
         orq     $2, %rax
         jmp     LBL(110)
+LBL(115):
+    /* Exception in C code */
+    /* Reinstall handler for exceptions raised in C */
+        lea     LBL(115)(%rip), %r13
+        pushq   %r13; CFI_ADJUST(8)
+        pushq   $0 ; CFI_ADJUST(8)     /* dummy prev trap */
+    /* Prepare for return to OCaml */
+        LOAD_VAR(caml_young_ptr, %r15)
+    /* Load ocaml stack and restore global variables */
+        LEAVE_FUNCTION
+        SWITCH_C_TO_OCAML(%r10)
+    /* Raise the exception in OCaml */
+        jmp LBL(caml_raise_exn)
 CFI_ENDPROC
 
 
@@ -774,13 +711,13 @@ CFI_ENDPROC
 FUNCTION(G(caml_raise_exn))
 CFI_STARTPROC
 LBL(caml_raise_exn):
-        RESTORE_EXN_HANDLER
+        RESTORE_EXN_HANDLER(caml_top_of_stack)
         ret
 CFI_ENDPROC
 
 FUNCTION(G(caml_reraise_exn))
 CFI_STARTPROC
-        RESTORE_EXN_HANDLER
+        RESTORE_EXN_HANDLER(caml_top_of_stack)
         ret
 CFI_ENDPROC
 
@@ -789,9 +726,9 @@ CFI_ENDPROC
 FUNCTION(G(caml_raise_exception))
 CFI_STARTPROC
         movq    C_ARG_1, %rax
-        LOAD_VAR(caml_exception_ptr_offset, %r14)
-        RESTORE_EXN_HANDLER            /* Cut stack */
-        LOAD_VAR(caml_young_ptr, %r15) /* Reload alloc ptr */
+        LOAD_VAR(caml_system_exnptr_offset, %r14)
+        RESTORE_EXN_HANDLER(caml_system_top_of_stack) /* Cut stack */
+        LOAD_VAR(caml_young_ptr, %r15)                /* Reload alloc ptr */
         ret
 CFI_ENDPROC
 
@@ -803,8 +740,9 @@ CFI_ENDPROC
 
 FUNCTION(G(caml_stack_overflow))
         LEA_VAR(caml_exn_Stack_overflow, %rax)
-        RESTORE_EXN_HANDLER           /* cut the stack */
-        ret                           /* jump to handler's code */
+        LOAD_VAR(caml_system_exnptr_offset, %r14)
+        RESTORE_EXN_HANDLER(caml_system_top_of_stack) /* cut the stack */
+        ret                                           /* jump to handler's code */
 
 /* Callback from C to OCaml */
 

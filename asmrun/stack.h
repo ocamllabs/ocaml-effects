@@ -101,6 +101,7 @@ extern void caml_register_dyn_global(void *);
 
 extern void caml_save_stack_gc(int);
 extern void caml_restore_stack_gc(void);
+extern void caml_restore_stack(void);
 extern void caml_switch_stack(value);
 CAMLextern void extract_location_info(frame_descr * d,
                                       /*out*/ struct caml_loc_info * li);
@@ -111,8 +112,7 @@ extern uintnat (*caml_stack_usage_hook)(void);
 
 /* Current OCaml stack */
 extern value  caml_current_stack;
-/* Current top of stack. [caml_top_of_stack == caml_system_sp] when running C
- * code. */
+/* Current OCaml top of stack. */
 extern char * caml_top_of_stack;
 /* Current stack threshold. Used to check for stack overflow of OCaml code. */
 extern char * caml_stack_threshold;
@@ -121,7 +121,7 @@ extern char * caml_system_sp;
 /* Saved top of system stack (approx.) */
 extern char * caml_system_top_of_stack;
 /* Offset of exception pointer from the top of stack */
-extern uintnat caml_exception_ptr_offset;
+extern uintnat caml_system_exnptr_offset;
 /* The address of the gc_regs slot in the caml_context at the bottom of the
  * OCaml stack. During allocation and GC, the gc_regs structure is built after
  * the context is built. We use this address to update the gc_regs slot in the
