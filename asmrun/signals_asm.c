@@ -169,7 +169,7 @@ DECLARE_SIGNAL_HANDLER(trap_handler)
   }
 #endif
   caml_fatal_error ("DECLARE_SIGNAL_HANDLER: signal handlers not implemented for fibers");
-  caml_exception_ptr_offset = CONTEXT_EXCEPTION_PTR_OFFSET;
+  caml_system_exnptr_offset = CONTEXT_EXNPTR_OFFSET;
   caml_young_ptr = (value *) CONTEXT_YOUNG_PTR;
   caml_last_return_address = (uintnat) CONTEXT_PC;
   caml_array_bound_error();
@@ -226,8 +226,8 @@ DECLARE_SIGNAL_HANDLER(segv_handler)
 #endif
 #else
     /* Raise a Stack_overflow exception straight from this signal handler */
-#if defined(CONTEXT_YOUNG_PTR) && defined(CONTEXT_EXCEPTION_PTR_OFFSET)
-    caml_exception_ptr_offset = CONTEXT_EXCEPTION_PTR_OFFSET;
+#if defined(CONTEXT_YOUNG_PTR) && defined(CONTEXT_EXNPTR_OFFSET)
+    caml_system_exnptr_offset = CONTEXT_EXNPTR_OFFSET;
     caml_young_ptr = (value *) CONTEXT_YOUNG_PTR;
 #endif
     caml_raise_stack_overflow();
