@@ -105,6 +105,7 @@ extern void caml_register_dyn_global(void *);
 
 extern void caml_save_stack_gc(int);
 extern void caml_restore_stack_gc(void);
+extern void caml_restore_stack(void);
 extern void caml_switch_stack(value);
 extern void caml_scan_stack(scanning_action, value);
 extern value* caml_scan_stack_high(scanning_action, value, value*);
