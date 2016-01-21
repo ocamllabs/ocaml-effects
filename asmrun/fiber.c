@@ -52,10 +52,17 @@ void caml_save_stack_gc(int mark_dirty)
   stack_is_saved = 1;
 }
 
+static void load_stack (value stack) {
+  caml_stack_threshold = Stack_base(stack) + Stack_threshold;
+  caml_top_of_stack = Stack_high(stack);
+  caml_current_stack = stack;
+}
+
 void caml_restore_stack_gc()
 {
   Assert(stack_is_saved);
   Assert(Tag_val(caml_current_stack) == Stack_tag);
+  load_stack(caml_current_stack);
   stack_is_saved = 0;
 }
 
@@ -139,7 +146,7 @@ void caml_realloc_stack () {
     dirty_stack(new_stack);
   }
 
-  caml_current_stack = new_stack;
+  load_stack(new_stack);
 
   /* Reset old stack */
   Stack_sp(old_stack) = 0;
@@ -183,7 +190,7 @@ void caml_init_main_stack (value* gc_regs)
   caml_gc_log ("Allocate stack=0x%lx of %lu words\n",
                stack, Stack_size/sizeof(value));
 
-  caml_current_stack = stack;
+  load_stack(stack);
   CAMLreturn0;
 }
 
@@ -282,7 +289,7 @@ void caml_switch_stack(value target) {
 
   dirty_stack (caml_current_stack);
 
-  caml_current_stack = target;
+  load_stack(target);
 
   if (caml_gc_phase == Phase_mark &&
       Color_val(caml_current_stack) != Caml_black) {
