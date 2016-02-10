@@ -81,7 +81,7 @@ void caml_do_roots (scanning_action f, int do_globals, int is_compaction)
   f(caml_global_data, &caml_global_data);
   CAML_INSTR_TIME (tmr, "major_roots/global");
   /* The stack and the local C roots */
-  caml_do_local_roots(f, caml_local_roots, is_compaction);
+  caml_do_local_roots(f, caml_local_roots, &caml_current_stack, is_compaction);
   CAML_INSTR_TIME (tmr, "major_roots/local");
   /* Global C roots */
   caml_scan_global_roots(f);
@@ -96,14 +96,15 @@ void caml_do_roots (scanning_action f, int do_globals, int is_compaction)
 
 CAMLexport void caml_do_local_roots (scanning_action f,
                                      struct caml__roots_block *local_roots,
+                                     value* stackp,
                                      int is_compaction)
 {
   struct caml__roots_block *lr;
   int i, j;
   value * sp;
 
-  if (!is_compaction) caml_scan_stack (f, caml_current_stack);
-  f (caml_current_stack, &caml_current_stack);
+  if (!is_compaction) caml_scan_stack (f, *stackp);
+  f (*stackp, stackp);
 
   for (lr = local_roots; lr != NULL; lr = lr->next) {
     for (i = 0; i < lr->ntables; i++){
