@@ -471,7 +471,7 @@ compilerlibs/ocamloptcomp.cmxa: $(ASMCOMP:.cmo=.cmx)
 partialclean::
 	rm -f compilerlibs/ocamloptcomp.cmxa compilerlibs/ocamloptcomp.a
 
-
+#XXX KC
 #ocamlopt.opt: asmrun/libasmrund.a compilerlibs/ocamlcommon.cmxa compilerlibs/ocamloptcomp.cmxa \
 
 ocamlopt.opt: compilerlibs/ocamlcommon.cmxa compilerlibs/ocamloptcomp.cmxa \
