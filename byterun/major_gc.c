@@ -190,6 +190,8 @@ static mlsize_t current_index = 0;
 #define INSTR(x) /**/
 #endif
 
+static void mark_child (value child, value* childp) __attribute__((always_inline));
+
 static void mark_child (value child, value* childp)
 {
   header_t chd;
