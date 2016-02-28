@@ -1541,9 +1541,9 @@ match_cases:
   | match_cases BAR match_case { $3 :: $1 }
 ;
 match_case:
-    pattern MINUSGREATER seq_expr
+    computation_pattern MINUSGREATER seq_expr
       { Exp.case $1 $3 }
-  | pattern WHEN seq_expr MINUSGREATER seq_expr
+  | computation_pattern WHEN seq_expr MINUSGREATER seq_expr
       { Exp.case $1 ~guard:$3 $5 }
 ;
 fun_def:
@@ -1599,6 +1599,13 @@ type_constraint:
 ;
 
 /* Patterns */
+computation_pattern:
+  | pattern
+      { $1 }
+  | EXCEPTION pattern %prec prec_constr_appl
+      { mkpat(Ppat_exception $2) }
+  | EFFECT pattern COMMA pattern
+      { mkpat(Ppat_effect($2, $4)) }
 
 pattern:
     simple_pattern
@@ -1627,10 +1634,6 @@ pattern:
       { expecting 3 "pattern" }
   | LAZY simple_pattern
       { mkpat(Ppat_lazy $2) }
-  | EXCEPTION pattern %prec prec_constr_appl
-      { mkpat(Ppat_exception $2) }
-  | EFFECT simple_pattern simple_pattern
-      { mkpat(Ppat_effect($2, $3)) }
   | pattern attribute
       { Pat.attr $1 $2 }
 ;
@@ -1666,15 +1669,15 @@ simple_pattern_not_ident:
       { mkpat(Ppat_array []) }
   | LBRACKETBAR pattern_semi_list opt_semi error
       { unclosed "[|" 1 "|]" 4 }
-  | LPAREN pattern RPAREN
+  | LPAREN computation_pattern RPAREN
       { reloc_pat $2 }
-  | LPAREN pattern error
+  | LPAREN computation_pattern error
       { unclosed "(" 1 ")" 3 }
-  | LPAREN pattern COLON core_type RPAREN
+  | LPAREN computation_pattern COLON core_type RPAREN
       { mkpat(Ppat_constraint($2, $4)) }
-  | LPAREN pattern COLON core_type error
+  | LPAREN computation_pattern COLON core_type error
       { unclosed "(" 1 ")" 5 }
-  | LPAREN pattern COLON error
+  | LPAREN computation_pattern COLON error
       { expecting 4 "type" }
   | LPAREN MODULE UIDENT RPAREN
       { mkpat(Ppat_unpack (mkrhs $3 3)) }
